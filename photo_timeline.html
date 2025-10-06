@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Timeline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exifreader@4.32.0/dist/exif-reader.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation; /* Prevents double tap zoom on mobile */
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .timeline-card {
+            width: 120px;
+            height: 120px;
+        }
+        @media (min-width: 768px) {
+            .timeline-card {
+                width: 160px;
+                height: 160px;
+            }
+        }
+        .timeline-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .timeline-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .timeline-container::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        .timeline-container::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .drop-zone {
+            transition: all 0.2s ease-in-out;
+            /* HALF WIDTH - Smaller clickable area for compact layout */
+            min-width: 80px;
+            min-height: 140px;
+            padding: 6px;
+        }
+        .drop-zone:hover {
+            transform: scale(1.02);
+            background-color: #0ea5e9; /* sky-500 */
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+        }
+        .correct-animation {
+            animation: correct-pulse 0.5s ease-out;
+        }
+        .incorrect-animation {
+            animation: incorrect-shake 0.5s ease-out;
+        }
+
+        /* Enhanced Animation Styles */
+        .card-moving {
+            position: fixed;
+            z-index: 1000;
+            pointer-events: none;
+            transform-origin: center;
+            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .card-moving.scaling {
+            transform: scale(0.8);
+        }
+
+        .card-moving.glow {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-moving.error-glow {
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.6), 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        @keyframes correct-pulse {
+            0% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+            50% { 
+                transform: scale(1.05); 
+                box-shadow: 0 0 0 15px rgba(34, 197, 94, 0);
+            }
+            100% { 
+                transform: scale(1); 
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+        @keyframes incorrect-shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-1deg); }
+            20%, 40%, 60%, 80% { transform: translateX(5px) rotate(1deg); }
+        }
+
+        /* Disable interactions during animation */
+        .game-disabled {
+            pointer-events: none;
+        }
+
+        .game-disabled .drop-zone:hover {
+            transform: none;
+            background-color: #38bdf8; /* Keep original color */
+            box-shadow: none;
+        }
+
+        /* Mobile-friendly HALF WIDTH touch targets */
+        @media (max-width: 768px) {
+            .drop-zone {
+                min-width: 60px;
+                min-height: 120px;
+                padding: 8px;
+            }
+        }
+
+        /* Compact layout - smaller main photo area */
+        .current-photo-container {
+            max-height: 300px;
+        }
+
+        .current-photo-card {
+            max-width: 350px;
+            max-height: 250px;
+        }
+
+        @media (max-width: 768px) {
+            .current-photo-container {
+                max-height: 200px;
+            }
+            .current-photo-card {
+                max-width: 250px;
+                max-height: 180px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <!-- Upload Screen -->
+    <div id="upload-screen" class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto text-center">
+            <h1 class="text-4xl font-bold text-slate-800 mb-8">Photo Timeline</h1>
+
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <div class="mb-6">
+                    <label id="image-upload-label" for="image-upload" class="inline-block bg-slate-400 text-white px-6 py-3 rounded-lg cursor-not-allowed font-medium transition-colors">
+                        Initializing Library...
+                    </label>
+                    <input type="file" id="image-upload" multiple accept="image/*" class="hidden" disabled>
+                </div>
+
+                <div id="upload-error" class="text-red-500 mb-4 hidden"></div>
+
+                <div id="loading-indicator" class="hidden">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
+                    <p class="text-slate-600 mt-2">Processing photos...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="container mx-auto px-4 py-3 hidden">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 bg-white rounded-xl shadow-lg p-3">
+            <h1 class="text-xl font-bold text-slate-800 mb-2 md:mb-0">Photo Timeline</h1>
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <div class="text-sm text-slate-600">Score</div>
+                    <div id="score-display" class="text-xl font-bold text-sky-500">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Card Area - Compact -->
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold text-slate-800 mb-3 text-center">Where does this photo belong?</h2>
+            <div id="current-card-container" class="current-photo-container flex justify-center">
+                <!-- Current card will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+            <h3 class="text-base font-semibold text-slate-800 mb-3">Timeline (oldest to newest)</h3>
+            <div id="timeline-container" class="timeline-container flex gap-1 overflow-x-auto pb-4 min-h-40">
+                <!-- Timeline cards will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="container mx-auto px-4 py-8 hidden">
+        <div class="max-w-lg mx-auto text-center">
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">Complete!</h2>
+                <div class="text-6xl mb-4">🎯</div>
+                <p class="text-xl text-slate-600 mb-2">Final Score</p>
+                <p id="final-score-display" class="text-4xl font-bold text-sky-500 mb-6">0</p>
+                <button id="play-again-btn" class="bg-sky-500 hover:bg-sky-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- GAME STATE ---
+            let deck = [];
+            let timeline = [];
+            let currentCard = null;
+            let score = 0;
+            let isAnimating = false; // Flag to prevent interactions during animation
+
+            // --- DOM ELEMENTS ---
+            const uploadScreen = document.getElementById('upload-screen');
+            const gameScreen = document.getElementById('game-screen');
+            const endScreen = document.getElementById('end-screen');
+            const imageUpload = document.getElementById('image-upload');
+            const imageUploadLabel = document.getElementById('image-upload-label');
+            const uploadError = document.getElementById('upload-error');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const currentCardContainer = document.getElementById('current-card-container');
+            const timelineContainer = document.getElementById('timeline-container');
+            const scoreEl = document.getElementById('score-display');
+            const finalScoreEl = document.getElementById('final-score-display');
+            const playAgainBtn = document.getElementById('play-again-btn');
+
+            // --- INITIALIZATION ---
+            uploadError.textContent = 'Initializing Library...';
+
+            let attempts = 0;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (typeof ExifReader !== 'undefined') {
+                    clearInterval(checkInterval);
+                    imageUpload.disabled = false;
+                    imageUploadLabel.classList.remove('bg-slate-400', 'cursor-not-allowed');
+                    imageUploadLabel.classList.add('bg-sky-500', 'hover:bg-sky-600');
+                    imageUploadLabel.textContent = 'Select Images';
+                } else if (attempts > 50) {
+                    clearInterval(checkInterval);
+                    uploadError.textContent = 'Error: Could not load the photo library. Please refresh.';
+                    uploadError.classList.remove('hidden');
+                    imageUploadLabel.textContent = 'Library Failed to Load';
+                }
+            }, 100);
+
+            // --- ANIMATION FUNCTIONS ---
+
+            function createMovingCard(sourceElement, targetElement, isCorrect = true) {
+                // Create clone of current card for animation
+                const movingCard = sourceElement.cloneNode(true);
+                movingCard.classList.add('card-moving');
+                if (isCorrect) {
+                    movingCard.classList.add('glow');
+                } else {
+                    movingCard.classList.add('error-glow');
+                }
+
+                // Get positions
+                const sourceRect = sourceElement.getBoundingClientRect();
+                const targetRect = targetElement.getBoundingClientRect();
+
+                // Set initial position
+                movingCard.style.left = sourceRect.left + 'px';
+                movingCard.style.top = sourceRect.top + 'px';
+                movingCard.style.width = sourceRect.width + 'px';
+                movingCard.style.height = sourceRect.height + 'px';
+
+                // Add to body
+                document.body.appendChild(movingCard);
+
+                // Force reflow
+                movingCard.offsetHeight;
+
+                // Add scaling effect
+                movingCard.classList.add('scaling');
+
+                // Animate to target position after a brief delay
+                setTimeout(() => {
+                    movingCard.style.left = targetRect.left + 'px';
+                    movingCard.style.top = targetRect.top + 'px';
+                    movingCard.style.width = targetRect.width + 'px';
+                    movingCard.style.height = targetRect.height + 'px';
+                }, 100);
+
+                // Clean up after animation
+                setTimeout(() => {
+                    if (movingCard.parentNode) {
+                        movingCard.parentNode.removeChild(movingCard);
+                    }
+                }, 900);
+
+                return movingCard;
+            }
+
+            function findCorrectTimelinePosition(card) {
+                let correctIndex = 0;
+                while(correctIndex < timeline.length && card.timestamp > timeline[correctIndex].timestamp) {
+                    correctIndex++;
+                }
+                return correctIndex;
+            }
+
+            function getTimelinePositionElement(index) {
+                // Find the drop zone or timeline card at the specified index
+                const dropZones = timelineContainer.querySelectorAll('.drop-zone');
+                const timelineCards = timelineContainer.querySelectorAll('.timeline-card');
+
+                if (index < dropZones.length) {
+                    return dropZones[index];
+                } else if (index < timelineCards.length) {
+                    return timelineCards[index];
+                }
+
+                // Fallback: return the last element in timeline container
+                return timelineContainer.lastElementChild || timelineContainer;
+            }
+
+            // --- GAME LOGIC ---
+
+            async function handleFileSelect(event) {
+                if (typeof ExifReader === 'undefined') {
+                    uploadError.textContent = 'Photo library failed to load. Please refresh and try again.';
+                    uploadError.classList.remove('hidden');
+                    loadingIndicator.classList.add('hidden');
+                    console.error("ExifReader is not defined. The library may have failed to load.");
+                    return;
+                }
+
+                const files = event.target.files;
+                if (files.length === 0) return;
+
+                loadingIndicator.classList.remove('hidden');
+                uploadError.classList.add('hidden');
+
+                const cardPromises = Array.from(files).map(file => {
+                    return new Promise(async (resolve) => {
+                        try {
+                            const tags = await ExifReader.load(file);
+                            const dateStr = tags['DateTimeOriginal']?.description;
+                            if (dateStr) {
+                                const [datePart, timePart] = dateStr.split(' ');
+                                const [year, month, day] = datePart.split(':');
+                                const [hours, minutes, seconds] = timePart.split(':');
+                                const date = new Date(year, month - 1, day, hours, minutes, seconds);
+
+                                resolve({
+                                    src: URL.createObjectURL(file),
+                                    date: date,
+                                    timestamp: date.getTime()
+                                });
+                            } else {
+                                resolve(null);
+                            }
+                        } catch (error) {
+                            console.error('Error reading EXIF data for file:', file.name, error);
+                            resolve(null);
+                        }
+                    });
+                });
+
+                const results = await Promise.all(cardPromises);
+                const validCards = results.filter(Boolean);
+
+                loadingIndicator.classList.add('hidden');
+
+                if (validCards.length < 3) {
+                    uploadError.textContent = `Not enough photos with date info! Found ${validCards.length}, but need at least 3.`;
+                    uploadError.classList.remove('hidden');
+                    imageUpload.value = '';
+                    return;
+                }
+
+                startGame(validCards);
+            }
+
+            function startGame(cards) {
+                deck = cards.sort(() => Math.random() - 0.5);
+                timeline = [];
+                score = 0;
+                currentCard = null;
+                isAnimating = false;
+                const firstCard = deck.pop();
+                timeline.push(firstCard);
+                uploadScreen.classList.add('hidden');
+                endScreen.classList.add('hidden');
+                gameScreen.classList.remove('hidden');
+                updateHUD();
+                drawNextCard();
+            }
+
+            function drawNextCard() {
+                if (deck.length === 0) {
+                    setTimeout(endGame, 500);
+                    return;
+                }
+                currentCard = deck.pop();
+                renderCurrentCard();
+                renderTimeline();
+                isAnimating = false; // Reset animation flag
+                gameScreen.classList.remove('game-disabled'); // Re-enable interactions
+            }
+
+            function handlePlacement(index) {
+                if (isAnimating) return; // Prevent multiple placements during animation
+
+                isAnimating = true;
+                gameScreen.classList.add('game-disabled'); // Disable interactions
+
+                const prevCard = timeline[index - 1];
+                const nextCard = timeline[index];
+                const isCorrect = 
+                    (!prevCard || currentCard.timestamp >= prevCard.timestamp) &&
+                    (!nextCard || currentCard.timestamp <= nextCard.timestamp);
+
+                const cardElement = currentCardContainer.querySelector('.card');
+                const targetElement = getTimelinePositionElement(index);
+
+                if (isCorrect) {
+                    score++; // Increment by 1 for correct placement
+                    timeline.splice(index, 0, currentCard);
+                    cardElement.classList.add('correct-animation');
+
+                    // Create moving animation to correct position
+                    createMovingCard(cardElement, targetElement, true);
+
+                    setTimeout(() => {
+                        cardElement.classList.remove('correct-animation');
+                        renderTimeline(); // Update timeline to show new card
+                        setTimeout(drawNextCard, 200); // Brief delay before next card
+                    }, 500);
+                } else {
+                    // No lives penalty - just continue playing
+                    currentCard.isIncorrect = true; // Flag the card as incorrect
+
+                    // Find the actual correct spot to place the card
+                    const correctIndex = findCorrectTimelinePosition(currentCard);
+                    const correctTargetElement = getTimelinePositionElement(correctIndex);
+
+                    timeline.splice(correctIndex, 0, currentCard); // Add it to the timeline in the correct spot
+
+                    cardElement.classList.add('incorrect-animation');
+
+                    // Create moving animation to correct position (with error styling)
+                    createMovingCard(cardElement, correctTargetElement, false);
+
+                    setTimeout(() => {
+                        cardElement.classList.remove('incorrect-animation');
+                        renderTimeline(); // Update timeline to show new card in correct position
+                        setTimeout(drawNextCard, 200); // Brief delay before next card
+                    }, 500);
+                }
+                updateHUD();
+            }
+
+            function endGame() {
+                finalScoreEl.textContent = score;
+                gameScreen.classList.add('hidden');
+                endScreen.classList.remove('hidden');
+            }
+
+            // --- RENDERING ---
+
+            function renderCurrentCard() {
+                currentCardContainer.innerHTML = '';
+                if (!currentCard) return;
+                const cardDiv = document.createElement('div');
+                cardDiv.className = "card current-photo-card w-full h-full bg-white rounded-xl overflow-hidden p-2 flex items-center justify-center mx-auto";
+                const img = document.createElement('img');
+                img.src = currentCard.src;
+                img.className = "max-w-full max-h-full object-contain rounded-md";
+                img.draggable = false;
+                cardDiv.appendChild(img);
+                currentCardContainer.appendChild(cardDiv);
+            }
+
+            function renderTimeline() {
+                timelineContainer.innerHTML = '';
+                const addDropZone = (index) => {
+                    const zone = document.createElement('div');
+                    zone.className = "drop-zone flex-shrink-0 bg-sky-400 rounded-lg cursor-pointer flex items-center justify-center shadow-inner";
+                    zone.dataset.index = index;
+                    zone.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>`;
+                    zone.onclick = () => handlePlacement(index);
+                    timelineContainer.appendChild(zone);
+                };
+
+                addDropZone(0);
+                timeline.forEach((card, i) => {
+                    const cardDiv = document.createElement('div');
+                    // Add 'relative' for positioning the date text
+                    cardDiv.className = "timeline-card relative flex-shrink-0 bg-white rounded-lg overflow-hidden card p-1.5";
+
+                    // Add orange border for incorrect placements instead of red
+                    if (card.isIncorrect) {
+                        cardDiv.classList.add('border-4', 'border-orange-400', 'p-0.5');
+                    }
+                    const img = document.createElement('img');
+                    img.src = card.src;
+                    img.className = "w-full h-full object-cover rounded";
+                    img.draggable = false;
+                    cardDiv.appendChild(img);
+
+                    // Add date overlay (no filename)
+                    const dateOverlay = document.createElement('div');
+                    dateOverlay.className = "absolute bottom-0 left-0 right-0 p-1 bg-black/60 text-white text-xs text-center font-medium pointer-events-none";
+                    dateOverlay.textContent = card.date.toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric'
+                    });
+                    cardDiv.appendChild(dateOverlay);
+
+                    timelineContainer.appendChild(cardDiv);
+                    addDropZone(i + 1);
+                });
+
+                timelineContainer.scrollLeft = timelineContainer.scrollWidth;
+            }
+
+            function updateHUD() {
+                scoreEl.textContent = score;
+                // No lives display needed
+            }
+
+            function resetGame() {
+                deck.forEach(card => URL.revokeObjectURL(card.src));
+                timeline.forEach(card => URL.revokeObjectURL(card.src));
+                if(currentCard) URL.revokeObjectURL(currentCard.src);
+                deck = [];
+                timeline = [];
+                currentCard = null;
+                isAnimating = false;
+                imageUpload.value = '';
+                endScreen.classList.add('hidden');
+                uploadScreen.classList.remove('hidden');
+                gameScreen.classList.remove('game-disabled');
+            }
+
+            // --- EVENT LISTENERS ---
+            imageUpload.addEventListener('change', handleFileSelect);
+            playAgainBtn.addEventListener('click', resetGame);
+        });
+    </script>
+</body>
+</html>
