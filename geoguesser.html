@@ -1,1337 +1,1117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom GeoGuesser</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""/>
-    
-    <style>
-        :root {
-            /* Primitive Color Tokens */
-            --color-white: rgba(255, 255, 255, 1);
-            --color-black: rgba(0, 0, 0, 1);
-            --color-cream-50: rgba(252, 252, 249, 1);
-            --color-cream-100: rgba(255, 255, 253, 1);
-            --color-gray-200: rgba(245, 245, 245, 1);
-            --color-gray-300: rgba(167, 169, 169, 1);
-            --color-gray-400: rgba(119, 124, 124, 1);
-            --color-slate-500: rgba(98, 108, 113, 1);
-            --color-brown-600: rgba(94, 82, 64, 1);
-            --color-charcoal-700: rgba(31, 33, 33, 1);
-            --color-charcoal-800: rgba(38, 40, 40, 1);
-            --color-slate-900: rgba(19, 52, 59, 1);
-            --color-teal-300: rgba(50, 184, 198, 1);
-            --color-teal-400: rgba(45, 166, 178, 1);
-            --color-teal-500: rgba(33, 128, 141, 1);
-            --color-teal-600: rgba(29, 116, 128, 1);
-            --color-teal-700: rgba(26, 104, 115, 1);
-            --color-teal-800: rgba(41, 150, 161, 1);
-            --color-red-400: rgba(255, 84, 89, 1);
-            --color-red-500: rgba(192, 21, 47, 1);
-            --color-orange-400: rgba(230, 129, 97, 1);
-            --color-orange-500: rgba(168, 75, 47, 1);
-
-            /* Semantic Color Tokens */
-            --color-background: var(--color-cream-50);
-            --color-surface: var(--color-cream-100);
-            --color-text: var(--color-charcoal-700);
-            --color-text-secondary: var(--color-slate-500);
-            --color-primary: var(--color-teal-500);
-            --color-primary-hover: var(--color-teal-600);
-            --color-success: var(--color-teal-600);
-            --color-danger: var(--color-red-500);
-            --color-warning: var(--color-orange-500);
-            --color-border: var(--color-gray-300);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--color-background);
-            color: var(--color-text);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .header {
-            background: linear-gradient(135deg, var(--color-teal-500), var(--color-teal-700));
-            color: white;
-            padding: 2rem 0;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .game-section {
-            display: none;
-            padding: 2rem 0;
-        }
-
-        .game-section.active {
-            display: block;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .section-header h2 {
-            font-size: 2rem;
-            color: var(--color-text);
-            margin-bottom: 0.5rem;
-        }
-
-        .section-header p {
-            color: var(--color-text-secondary);
-            font-size: 1.1rem;
-        }
-
-        .progress-indicator {
-            margin-top: 1rem;
-            padding: 0.75rem 1.5rem;
-            background-color: var(--color-surface);
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            display: inline-block;
-        }
-
-        .upload-area {
-            border: 3px dashed var(--color-border);
-            border-radius: 12px;
-            padding: 3rem;
-            text-align: center;
-            background-color: var(--color-surface);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            margin-bottom: 2rem;
-        }
-
-        .upload-area:hover,
-        .upload-area.drag-over {
-            border-color: var(--color-primary);
-            background-color: rgba(33, 128, 141, 0.05);
-        }
-
-        .upload-content .upload-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .upload-content p {
-            font-size: 1.2rem;
-            color: var(--color-text);
-            margin-bottom: 0.5rem;
-        }
-
-        .upload-hint {
-            color: var(--color-text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .uploaded-images {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .uploaded-image-item {
-            background-color: var(--color-surface);
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-
-        .uploaded-image-item img {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 6px;
-            margin-bottom: 0.75rem;
-        }
-
-        .uploaded-image-info h4 {
-            font-size: 0.9rem;
-            color: var(--color-text);
-            margin-bottom: 0.25rem;
-            word-break: break-word;
-        }
-
-        .uploaded-image-info p {
-            font-size: 0.8rem;
-            color: var(--color-text-secondary);
-        }
-
-        .remove-image {
-            background-color: var(--color-danger);
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-        }
-
-        .remove-image:hover {
-            background-color: #c53030;
-        }
-
-        .setup-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .setup-images {
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .setup-image-item {
-            background-color: var(--color-surface);
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .setup-image-item.configured {
-            border-color: var(--color-success);
-        }
-
-        .setup-image-item img {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-        }
-
-        .setup-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .setup-controls input {
-            padding: 0.75rem;
-            border: 2px solid var(--color-border);
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-
-        .setup-controls input:focus {
-            outline: none;
-            border-color: var(--color-primary);
-        }
-
-        .coordinate-display {
-            font-size: 0.8rem;
-            color: var(--color-text-secondary);
-            padding: 0.5rem;
-            background-color: var(--color-gray-200);
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .map-container {
-            height: 400px;
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .btn--primary {
-            background-color: var(--color-primary);
-            color: white;
-        }
-
-        .btn--primary:hover:not(:disabled) {
-            background-color: var(--color-primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn--secondary {
-            background-color: var(--color-gray-400);
-            color: white;
-        }
-
-        .btn--secondary:hover:not(:disabled) {
-            background-color: #718096;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .section-actions {
-            text-align: center;
-            margin-top: 2rem;
-        }
-
-        .section-actions .btn {
-            margin: 0 0.5rem;
-        }
-
-        .game-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .game-image-container {
-            text-align: center;
-        }
-
-        .game-image-container img {
-            width: 100%;
-            max-height: 400px;
-            object-fit: contain;
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-
-        .game-info {
-            background-color: var(--color-surface);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-
-        .game-info h3 {
-            color: var(--color-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .game-actions {
-            text-align: center;
-            margin-top: 1rem;
-        }
-
-        .round-result {
-            background-color: var(--color-surface);
-            border: 2px solid var(--color-border);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-            text-align: center;
-        }
-
-        .round-result h3 {
-            color: var(--color-primary);
-            margin-bottom: 1rem;
-        }
-
-        .result-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-
-        .result-item {
-            padding: 0.75rem;
-            background-color: var(--color-gray-200);
-            border-radius: 6px;
-        }
-
-        .result-label {
-            font-size: 0.8rem;
-            color: var(--color-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.25rem;
-        }
-
-        .result-value {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--color-text);
-        }
-
-        .final-results {
-            text-align: center;
-            padding: 2rem;
-            background-color: var(--color-surface);
-            border-radius: 8px;
-            margin-bottom: 2rem;
-        }
-
-        .final-score {
-            font-size: 3rem;
-            font-weight: 700;
-            color: var(--color-primary);
-            margin-bottom: 1rem;
-        }
-
-        .results-breakdown {
-            margin: 2rem 0;
-        }
-
-        .round-summary {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            background-color: var(--color-gray-200);
-            border-radius: 6px;
-        }
-
-        .timer {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--color-primary);
-            text-align: center;
-            margin: 1rem 0;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 15px;
-            }
-
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .setup-container,
-            .game-container {
-                grid-template-columns: 1fr;
-            }
-
-            .uploaded-images {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
-
-            .result-details {
-                grid-template-columns: 1fr;
-            }
-
-            .round-summary {
-                flex-direction: column;
-                text-align: center;
-                gap: 0.5rem;
-            }
-        }
-
-        /* Leaflet map customizations */
-        .leaflet-container {
-            height: 100%;
-            border-radius: 6px;
-        }
-
-        .leaflet-popup-content {
-            text-align: center;
-            margin: 8px 12px;
-        }
-
-        .status-message {
-            text-align: center;
-            padding: 1rem;
-            margin: 1rem 0;
-            border-radius: 6px;
-            font-weight: 500;
-        }
-
-        .status-message.info {
-            background-color: rgba(33, 128, 141, 0.1);
-            color: var(--color-primary);
-            border: 2px solid rgba(33, 128, 141, 0.3);
-        }
-
-        .status-message.success {
-            background-color: rgba(33, 128, 141, 0.1);
-            color: var(--color-success);
-            border: 2px solid rgba(33, 128, 141, 0.3);
-        }
-
-        .game-controls {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GeoGuesser</title>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+/>
+<style>
+  :root {
+    --color-white: rgba(255, 255, 255, 1);
+    --color-black: rgba(0, 0, 0, 1);
+    --color-cream-50: rgba(252, 252, 249, 1);
+    --color-cream-100: rgba(255, 255, 253, 1);
+    --color-gray-300: rgba(167, 169, 169, 1);
+    --color-slate-500: rgba(98, 108, 113, 1);
+    --color-charcoal-700: rgba(31, 33, 33, 1);
+    --color-teal-500: rgba(33, 128, 141, 1);
+    --color-teal-600: rgba(29, 116, 128, 1);
+    --color-red-500: rgba(192, 21, 47, 1);
+  }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--color-cream-50);
+    color: var(--color-charcoal-700);
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 10px 15px;
+  }
+  header {
+    background: linear-gradient(
+      135deg,
+      var(--color-teal-500),
+      var(--color-teal-600)
+    );
+    color: white;
+    padding: 1rem 15px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.8rem;
+    user-select: none;
+  }
+  .game-section {
+    display: none;
+    padding: 10px 0 30px 0;
+  }
+  .game-section.active {
+    display: block;
+  }
+  .upload-area {
+    border: 2px dashed var(--color-gray-300);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--color-slate-500);
+    margin-bottom: 10px;
+  }
+  .upload-area.drag-over {
+    border-color: var(--color-teal-500);
+    background-color: #e5f4f7;
+    color: var(--color-teal-600);
+  }
+  input[type='file'] {
+    display: none;
+  }
+  #uploaded-images {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    max-height: 140px;
+    overflow-y: auto;
+    border: 1px solid var(--color-gray-300);
+    padding: 5px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .uploaded-image-item {
+    position: relative;
+    width: 120px;
+    height: 90px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--color-gray-300);
+    flex-shrink: 0;
+  }
+  .uploaded-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .remove-image {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: var(--color-red-500);
+    border: none;
+    color: white;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.85;
+  }
+  .remove-image:hover {
+    opacity: 1;
+  }
+  .btn {
+    cursor: pointer;
+    outline: none;
+    border: none;
+    padding: 7px 16px;
+    font-weight: 700;
+    border-radius: 5px;
+    min-width: 120px;
+    font-size: 1rem;
+    user-select: none;
+    transition: background-color 0.3s ease;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background-color: var(--color-teal-500);
+    color: white;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-teal-600);
+  }
+  .btn-secondary {
+    background-color: var(--color-gray-300);
+    color: var(--color-charcoal-700);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-gray-400);
+  }
+  #continue-setup,
+  #start-game,
+  #submit-guess,
+  #next-round,
+  #play-again,
+  #upload-new {
+    margin-right: 15px;
+  }
+  #csv-upload-label {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--color-teal-500);
+  }
+  #csv-file-input {
+    display: none;
+  }
+  #setup-and-game-container {
+    display: flex;
+    gap: 15px;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+  #setup-images,
+  #setup-map,
+  #game-map {
+    border: 2px solid var(--color-gray-300);
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  #setup-images,
+  #game-image-container {
+    flex: 1 1 320px;
+    max-width: 400px;
+    overflow-y: auto;
+    max-height: 320px;
+  }
+  #setup-images {
+    padding-right: 5px;
+  }
+  #setup-map,
+  #game-map {
+    flex: 2 1 620px;
+    min-height: 320px;
+  }
+  .setup-image-item {
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid var(--color-gray-300);
+    padding-bottom: 8px;
+  }
+  .setup-image-item img {
+    height: 70px;
+    object-fit: cover;
+    border-radius: 6px;
+    width: 100px;
+  }
+  .location-input {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    padding: 6px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--color-gray-300);
+  }
+  .location-input:focus {
+    border-color: var(--color-teal-500);
+    outline: none;
+  }
+  .coordinates-display {
+    font-size: 0.8rem;
+    color: var(--color-slate-500);
+    margin-top: 3px;
+  }
+  #game-image-container {
+    text-align: center;
+  }
+  #current-image {
+    max-width: 100%;
+    max-height: 320px;
+    border-radius: 8px;
+    border: 2px solid var(--color-gray-300);
+    object-fit: contain;
+  }
+  #round-info {
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  #timer {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-teal-600);
+    margin-bottom: 10px;
+  }
+  #game-status {
+    margin-top: 8px;
+    font-weight: 600;
+    color: var(--color-teal-500);
+    font-size: 0.95rem;
+  }
+  #round-result {
+    margin-top: 14px;
+    border: 2px solid var(--color-gray-300);
+    border-radius: 10px;
+    background-color: var(--color-cream-100);
+    padding: 10px 15px;
+  }
+  #round-result h3 {
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+  }
+  .result-details {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result-item {
+    min-width: 80px;
+    padding: 5px 10px;
+    text-align: center;
+  }
+  .result-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--color-slate-500);
+  }
+  .result-value {
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  #results-section {
+    text-align: center;
+  }
+  #final-score {
+    font-size: 2.2rem;
+    color: var(--color-teal-500);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  #final-percentage {
+    font-size: 1.1rem;
+    margin-bottom: 18px;
+    color: var(--color-slate-500);
+  }
+  #results-list {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--color-gray-300);
+    border-radius: 8px;
+    padding: 6px;
+  }
+  .round-summary {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--color-gray-300);
+  }
+  .round-summary:last-child {
+    border-bottom: none;
+  }
+  #csv-info {
+    font-size: 0.85rem;
+    color: var(--color-slate-500);
+    margin-bottom: 5px;
+    text-align: center;
+  }
+</style>
 </head>
 <body>
-    <header class="header">
-        <div class="container">
-            <h1>Custom GeoGuesser</h1>
-            <p>Upload your own images and create location guessing challenges</p>
+<header>GeoGuesser</header>
+<main class="container">
+  <!-- Upload Section -->
+  <section id="upload-section" class="game-section active">
+    <div class="upload-area" id="upload-area" tabindex="0" aria-label="Upload images by drag or click">
+      <div>Drag and drop images here or click to select (Accepts JPG, PNG, JPEG)</div>
+      <input type="file" id="file-input" multiple accept="image/jpeg,image/jpg,image/png" />
+    </div>
+    <div id="uploaded-images" aria-label="Uploaded images container"></div>
+    <label for="csv-file-input" id="csv-upload-label" tabindex="0">Or upload CSV file with locations</label>
+    <input type="file" id="csv-file-input" accept=".csv,text/csv" />
+    <div id="csv-info"></div>
+    <div style="margin-top: 10px; text-align:center;">
+      <button id="continue-setup" class="btn btn-primary" disabled>Continue to Setup</button>
+      <button id="try-demo" class="btn btn-secondary">Try Demo Mode</button>
+    </div>
+  </section>
+
+  <!-- Setup & Game Compact Container -->
+  <section id="setup-section" class="game-section">
+    <div id="setup-and-game-container">
+      <div id="setup-images" aria-label="Setup image list"></div>
+      <div id="setup-map" style="height:320px;"></div>
+    </div>
+    <div style="text-align:center; margin-top:15px;">
+      <button id="back-to-upload" class="btn btn-secondary">Back to Upload</button>
+      <button id="start-game" class="btn btn-primary" disabled>Start Game</button>
+    </div>
+  </section>
+
+  <!-- Game Section -->
+  <section id="game-section" class="game-section">
+    <div id="round-info" aria-live="polite" ></div>
+    <div id="game-map" style="height: 320px; border: 2px solid #a7a9ac; border-radius: 8px;"></div>
+    <div id="game-image-container" style="margin-top:12px; text-align:center;">
+      <img id="current-image" alt="Location to guess" />
+      <div id="game-status" role="status" aria-live="polite"></div>
+    </div>
+    <div style="text-align:center; margin-top:8px;">
+      <button id="submit-guess" class="btn btn-primary" disabled>Submit Guess</button>
+      <button id="next-round" class="btn btn-primary" style="display:none;">Next Round</button>
+    </div>
+    <div id="round-result" style="margin-top:15px; display:none;">
+      <h3 style="margin-bottom:6px;">Round Result</h3>
+      <div class="result-details">
+        <div class="result-item">
+          <div class="result-label">Your Guess</div>
+          <div class="result-value" id="guess-location">-</div>
         </div>
-    </header>
+        <div class="result-item">
+          <div class="result-label">Actual Location</div>
+          <div class="result-value" id="actual-location">-</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Distance</div>
+          <div class="result-value" id="round-distance">0 km</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Points</div>
+          <div class="result-value" id="round-points">0</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <main class="container">
-        <!-- Upload Section -->
-        <section id="upload-section" class="game-section active">
-            <div class="section-header">
-                <h2>Upload Images</h2>
-                <p>Upload multiple images to create your custom guessing game</p>
-            </div>
-            
-            <div class="upload-area" id="upload-area">
-                <div class="upload-content">
-                    <div class="upload-icon">📁</div>
-                    <p>Drag and drop images here or click to select</p>
-                    <p class="upload-hint">Accepts JPG, PNG, JPEG files</p>
-                    <input type="file" id="file-input" multiple accept="image/jpeg,image/jpg,image/png" class="hidden">
-                </div>
-            </div>
+  <!-- Results Section -->
+  <section id="results-section" class="game-section">
+    <div id="final-score" aria-live="polite"></div>
+    <div id="final-percentage"></div>
+    <div id="results-list" aria-label="Round results breakdown" tabindex="0"></div>
+    <div style="text-align:center; margin-top:15px;">
+      <button id="play-again" class="btn btn-primary">Play Again</button>
+      <button id="upload-new" class="btn btn-secondary">Upload New Images</button>
+    </div>
+  </section>
+</main>
 
-            <div id="uploaded-images" class="uploaded-images"></div>
+<!-- EXIF.js library -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
 
-            <div class="section-actions">
-                <button id="continue-setup" class="btn btn--primary" disabled>Continue to Setup</button>
-                <button id="try-demo" class="btn btn--secondary">Try Demo Mode</button>
-            </div>
-        </section>
+<!-- Leaflet JS -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
 
-        <!-- Setup Section -->
-        <section id="setup-section" class="game-section">
-            <div class="section-header">
-                <h2>Setup Locations</h2>
-                <p>Set the correct location for each image by clicking on the interactive map</p>
-                <div class="progress-indicator">
-                    <span id="setup-progress">0 of 0 images configured</span>
-                </div>
-            </div>
+<script>
+  class GeoGuesser {
+    constructor() {
+      this.images = [];
+      this.locationsFromCSV = {};
+      this.currentRound = 0;
+      this.score = 0;
+      this.roundResults = [];
+      this.gameState = {
+        currentGuess: null,
+        roundInProgress: false,
+        showingResults: false,
+        processing: false,
+      };
+      this.demoMode = false;
 
-            <div class="setup-container">
-                <div id="setup-images" class="setup-images"></div>
-                <div class="map-container">
-                    <div id="setup-map"></div>
-                </div>
-            </div>
+      // Settings
+      this.settings = {
+        maxImages: 10,
+        maxScore: 5000,
+        perfectDistance: 25,
+        goodDistance: 100,
+        okDistance: 500,
+        farDistance: 1500,
+      };
 
-            <div class="section-actions">
-                <button id="back-to-upload" class="btn btn--secondary">Back to Upload</button>
-                <button id="start-game" class="btn btn--primary" disabled>Start Game</button>
-            </div>
-        </section>
+      // Map config
+      this.mapConfig = {
+        center: [20, 0],
+        zoom: 2,
+        tileLayer: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attribution: "© OpenStreetMap contributors",
+      };
 
-        <!-- Game Section -->
-        <section id="game-section" class="game-section">
-            <div class="section-header">
-                <h2>Make Your Guess</h2>
-                <div class="game-info">
-                    <h3 id="round-info">Round 1 of 5</h3>
-                    <div class="timer" id="timer" style="display: none;">Time: 60s</div>
-                </div>
-            </div>
+      this.setupMap = null;
+      this.gameMap = null;
+      this.currentMarkers = [];
 
-            <div class="game-container">
-                <div class="game-image-container">
-                    <img id="current-image" src="" alt="Guess the location">
-                    <div class="status-message info" id="game-status">Click on the map to place your guess</div>
-                </div>
-                <div class="map-container">
-                    <div id="game-map"></div>
-                </div>
-            </div>
+      // Bind UI Elements
+      this.bindUI();
 
-            <div class="game-controls">
-                <button id="submit-guess" class="btn btn--primary" disabled>Submit Guess</button>
-            </div>
+      this.showSection("upload-section");
+    }
 
-            <div id="round-result" class="round-result" style="display: none;">
-                <h3>Round Result</h3>
-                <div class="result-details">
-                    <div class="result-item">
-                        <div class="result-label">Your Guess</div>
-                        <div class="result-value" id="guess-location">-</div>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-label">Actual Location</div>
-                        <div class="result-value" id="actual-location">-</div>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-label">Distance</div>
-                        <div class="result-value" id="round-distance">0 km</div>
-                    </div>
-                    <div class="result-item">
-                        <div class="result-label">Points</div>
-                        <div class="result-value" id="round-points">0</div>
-                    </div>
-                </div>
-                <div class="game-controls">
-                    <button id="next-round" class="btn btn--primary">Next Round</button>
-                </div>
-            </div>
-        </section>
+    bindUI() {
+      this.fileInput = document.getElementById("file-input");
+      this.uploadArea = document.getElementById("upload-area");
+      this.uploadImagesContainer = document.getElementById("uploaded-images");
+      this.continueSetupBtn = document.getElementById("continue-setup");
+      this.tryDemoBtn = document.getElementById("try-demo");
+      this.csvFileInput = document.getElementById("csv-file-input");
+      this.csvInfo = document.getElementById("csv-info");
 
-        <!-- Results Section -->
-        <section id="results-section" class="game-section">
-            <div class="section-header">
-                <h2>Final Results</h2>
-            </div>
+      this.setupImagesContainer = document.getElementById("setup-images");
+      this.startGameBtn = document.getElementById("start-game");
+      this.backToUploadBtn = document.getElementById("back-to-upload");
+      this.setupMapContainer = document.getElementById("setup-map");
 
-            <div class="final-results">
-                <div class="final-score" id="final-score">0 / 25000</div>
-                <p id="final-percentage">0% Accuracy</p>
+      this.roundInfo = document.getElementById("round-info");
+      this.gameStatus = document.getElementById("game-status");
+      this.currentImage = document.getElementById("current-image");
+      this.gameMapContainer = document.getElementById("game-map");
+      this.submitGuessBtn = document.getElementById("submit-guess");
+      this.nextRoundBtn = document.getElementById("next-round");
 
-                <div class="results-breakdown">
-                    <h3>Round Breakdown</h3>
-                    <div id="results-list"></div>
-                </div>
+      this.roundResult = document.getElementById("round-result");
+      this.guessLocation = document.getElementById("guess-location");
+      this.actualLocation = document.getElementById("actual-location");
+      this.roundDistance = document.getElementById("round-distance");
+      this.roundPoints = document.getElementById("round-points");
 
-                <div class="section-actions">
-                    <button id="play-again" class="btn btn--primary">Play Again</button>
-                    <button id="upload-new" class="btn btn--secondary">Upload New Images</button>
-                </div>
-            </div>
-        </section>
-    </main>
+      this.resultsSection = document.getElementById("results-section");
+      this.finalScore = document.getElementById("final-score");
+      this.finalPercentage = document.getElementById("final-percentage");
+      this.resultsList = document.getElementById("results-list");
+      this.playAgainBtn = document.getElementById("play-again");
+      this.uploadNewBtn = document.getElementById("upload-new");
 
-    <!-- Leaflet JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
+      this.continueSetupBtn.disabled = true;
 
-    <script>
-        class CustomGeoGuesser {
-            constructor() {
-                this.uploadedImages = [];
-                this.gameImages = [];
-                this.currentRound = 0;
-                this.score = 0;
-                this.roundResults = [];
-                this.gameTimer = null;
-                this.timeLeft = 60;
-                this.currentGuess = null;
-                
-                // Game state management
-                this.gameState = {
-                    currentRound: 0,
-                    totalRounds: 0,
-                    currentGuess: null,
-                    roundInProgress: false,
-                    showingResults: false,
-                    processing: false
-                };
-                
-                // Map instances
-                this.setupMaps = {};
-                this.gameMap = null;
-                this.currentGameMarkers = [];
-                
-                // Demo mode flag
-                this.demoMode = false;
-                
-                // Game settings
-                this.settings = {
-                    maxImages: 10,
-                    timePerRound: 60,
-                    maxScore: 5000,
-                    perfectDistance: 25,
-                    goodDistance: 100,
-                    okDistance: 500,
-                    farDistance: 1500
-                };
-                
-                // Map configuration
-                this.mapConfig = {
-                    defaultCenter: [20, 0],
-                    defaultZoom: 2,
-                    minZoom: 1,
-                    maxZoom: 18,
-                    tileLayer: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    attribution: "© OpenStreetMap contributors"
-                };
-                
-                // Demo images with pre-configured locations
-                this.demoImages = [
-                    {
-                        id: 'demo-1',
-                        name: 'Eiffel Tower, Paris',
-                        thumbnail: this.createPlaceholderImage('Eiffel Tower\nParis, France', '#1FB8CD'),
-                        originalSrc: this.createPlaceholderImage('Eiffel Tower\nParis, France', '#1FB8CD'),
-                        location: 'Paris, France',
-                        coordinates: { lat: 48.8584, lng: 2.2945 },
-                        size: '125 KB'
-                    },
-                    {
-                        id: 'demo-2',
-                        name: 'Times Square, New York',
-                        thumbnail: this.createPlaceholderImage('Times Square\nNew York, USA', '#FFC107'),
-                        originalSrc: this.createPlaceholderImage('Times Square\nNew York, USA', '#FFC107'),
-                        location: 'New York, USA',
-                        coordinates: { lat: 40.7589, lng: -73.9851 },
-                        size: '98 KB'
-                    },
-                    {
-                        id: 'demo-3',
-                        name: 'Sydney Opera House',
-                        thumbnail: this.createPlaceholderImage('Sydney Opera House\nSydney, Australia', '#4CAF50'),
-                        originalSrc: this.createPlaceholderImage('Sydney Opera House\nSydney, Australia', '#4CAF50'),
-                        location: 'Sydney, Australia',
-                        coordinates: { lat: -33.8568, lng: 151.2153 },
-                        size: '156 KB'
-                    }
-                ];
-                
-                this.initializeApp();
-            }
-            
-            createPlaceholderImage(text, color = '#1FB8CD') {
-                const canvas = document.createElement('canvas');
-                canvas.width = 300;
-                canvas.height = 200;
-                const ctx = canvas.getContext('2d');
-                
-                // Background
-                ctx.fillStyle = color;
-                ctx.fillRect(0, 0, 300, 200);
-                
-                // Text
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 16px Arial';
-                ctx.textAlign = 'center';
-                
-                const lines = text.split('\n');
-                lines.forEach((line, index) => {
-                    ctx.fillText(line, 150, 90 + (index * 25));
-                });
-                
-                return canvas.toDataURL();
-            }
-            
-            initializeApp() {
-                this.setupEventListeners();
-                this.showSection('upload-section');
-            }
-            
-            setupEventListeners() {
-                // Upload section
-                const uploadArea = document.getElementById('upload-area');
-                const fileInput = document.getElementById('file-input');
-                
-                if (uploadArea && fileInput) {
-                    uploadArea.addEventListener('click', () => fileInput.click());
-                    uploadArea.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        uploadArea.classList.add('drag-over');
-                    });
-                    uploadArea.addEventListener('dragleave', () => {
-                        uploadArea.classList.remove('drag-over');
-                    });
-                    uploadArea.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        uploadArea.classList.remove('drag-over');
-                        this.handleFiles(e.dataTransfer.files);
-                    });
-                    
-                    fileInput.addEventListener('change', (e) => {
-                        this.handleFiles(e.target.files);
-                    });
-                }
-                
-                // Continue to setup button
-                const continueBtn = document.getElementById('continue-setup');
-                if (continueBtn) {
-                    continueBtn.addEventListener('click', () => {
-                        this.showSetupSection();
-                    });
-                }
-                
-                // Try demo button
-                const demoBtn = document.getElementById('try-demo');
-                if (demoBtn) {
-                    demoBtn.addEventListener('click', () => {
-                        this.startDemoMode();
-                    });
-                }
-                
-                // Setup section
-                const startGameBtn = document.getElementById('start-game');
-                if (startGameBtn) {
-                    startGameBtn.addEventListener('click', () => {
-                        this.startGame();
-                    });
-                }
-                
-                const backToUploadBtn = document.getElementById('back-to-upload');
-                if (backToUploadBtn) {
-                    backToUploadBtn.addEventListener('click', () => {
-                        this.showSection('upload-section');
-                    });
-                }
-                
-                // Game section
-                const submitGuessBtn = document.getElementById('submit-guess');
-                if (submitGuessBtn) {
-                    submitGuessBtn.addEventListener('click', () => {
-                        this.submitGuess();
-                    });
-                }
-                
-                const nextRoundBtn = document.getElementById('next-round');
-                if (nextRoundBtn) {
-                    nextRoundBtn.addEventListener('click', () => {
-                        this.nextRound();
-                    });
-                }
-                
-                // Results section
-                const playAgainBtn = document.getElementById('play-again');
-                if (playAgainBtn) {
-                    playAgainBtn.addEventListener('click', () => {
-                        this.resetGame();
-                        this.startGame();
-                    });
-                }
-                
-                const uploadNewBtn = document.getElementById('upload-new');
-                if (uploadNewBtn) {
-                    uploadNewBtn.addEventListener('click', () => {
-                        this.resetGame();
-                        this.showSection('upload-section');
-                    });
-                }
-            }
-            
-            handleFiles(files) {
-                Array.from(files).forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        this.processImageFile(file);
-                    }
-                });
-            }
-            
-            processImageFile(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const imageData = {
-                        id: Date.now() + Math.random(),
-                        name: file.name,
-                        size: this.formatFileSize(file.size),
-                        thumbnail: e.target.result,
-                        originalSrc: e.target.result,
-                        location: '',
-                        coordinates: null
-                    };
-                    
-                    this.uploadedImages.push(imageData);
-                    this.displayUploadedImages();
-                    this.updateContinueButton();
-                };
-                reader.readAsDataURL(file);
-            }
-            
-            formatFileSize(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-            }
-            
-            displayUploadedImages() {
-                const container = document.getElementById('uploaded-images');
-                if (!container) return;
-                
-                container.innerHTML = '';
-                
-                this.uploadedImages.forEach(image => {
-                    const imageItem = document.createElement('div');
-                    imageItem.className = 'uploaded-image-item';
-                    imageItem.innerHTML = `
-                        <img src="${image.thumbnail}" alt="${image.name}">
-                        <div class="uploaded-image-info">
-                            <h4>${image.name}</h4>
-                            <p>${image.size}</p>
-                        </div>
-                        <button class="remove-image" data-id="${image.id}">Remove</button>
-                    `;
-                    
-                    const removeBtn = imageItem.querySelector('.remove-image');
-                    removeBtn.addEventListener('click', () => {
-                        this.removeImage(image.id);
-                    });
-                    
-                    container.appendChild(imageItem);
-                });
-            }
-            
-            removeImage(imageId) {
-                this.uploadedImages = this.uploadedImages.filter(img => img.id !== imageId);
-                this.displayUploadedImages();
-                this.updateContinueButton();
-            }
-            
-            updateContinueButton() {
-                const continueBtn = document.getElementById('continue-setup');
-                if (continueBtn) {
-                    continueBtn.disabled = this.uploadedImages.length === 0;
-                }
-            }
-            
-            startDemoMode() {
-                this.demoMode = true;
-                this.uploadedImages = [...this.demoImages];
-                this.showSetupSection();
-            }
-            
-            showSection(sectionId) {
-                document.querySelectorAll('.game-section').forEach(section => {
-                    section.classList.remove('active');
-                });
-                
-                const targetSection = document.getElementById(sectionId);
-                if (targetSection) {
-                    targetSection.classList.add('active');
-                }
-            }
-            
-            showSetupSection() {
-                this.showSection('setup-section');
-                this.displaySetupImages();
-                this.initializeSetupMap();
-                this.updateSetupProgress();
-            }
-            
-            displaySetupImages() {
-                const container = document.getElementById('setup-images');
-                if (!container) return;
-                
-                container.innerHTML = '';
-                
-                this.uploadedImages.forEach((image, index) => {
-                    const setupItem = document.createElement('div');
-                    setupItem.className = `setup-image-item ${image.coordinates ? 'configured' : ''}`;
-                    setupItem.innerHTML = `
-                        <img src="${image.thumbnail}" alt="${image.name}">
-                        <div class="setup-controls">
-                            <input type="text" 
-                                   placeholder="Location description" 
-                                   value="${image.location}"
-                                   data-id="${image.id}"
-                                   class="location-input">
-                            <div class="coordinate-display" id="coords-${image.id}">
-                                ${image.coordinates ? 
-                                    `Lat: ${image.coordinates.lat.toFixed(4)}, Lng: ${image.coordinates.lng.toFixed(4)}` :
-                                    'Click on map to set location'}
-                            </div>
-                        </div>
-                    `;
-                    
-                    const locationInput = setupItem.querySelector('.location-input');
-                    locationInput.addEventListener('input', (e) => {
-                        const imageData = this.uploadedImages.find(img => img.id == image.id);
-                        if (imageData) {
-                            imageData.location = e.target.value;
-                        }
-                    });
-                    
-                    container.appendChild(setupItem);
-                });
-            }
-            
-            initializeSetupMap() {
-                const mapContainer = document.getElementById('setup-map');
-                if (!mapContainer || this.setupMap) return;
-                
-                this.setupMap = L.map('setup-map').setView(this.mapConfig.defaultCenter, this.mapConfig.defaultZoom);
-                
-                L.tileLayer(this.mapConfig.tileLayer, {
-                    attribution: this.mapConfig.attribution,
-                    maxZoom: this.mapConfig.maxZoom,
-                    minZoom: this.mapConfig.minZoom
-                }).addTo(this.setupMap);
-                
-                this.setupMap.on('click', (e) => {
-                    this.handleSetupMapClick(e);
-                });
-                
-                // Add existing markers
-                this.uploadedImages.forEach(image => {
-                    if (image.coordinates) {
-                        this.addSetupMarker(image);
-                    }
-                });
-            }
-            
-            handleSetupMapClick(e) {
-                const { lat, lng } = e.latlng;
-                
-                // Find the first image without coordinates
-                const unConfiguredImage = this.uploadedImages.find(img => !img.coordinates);
-                
-                if (unConfiguredImage) {
-                    unConfiguredImage.coordinates = { lat, lng };
-                    this.addSetupMarker(unConfiguredImage);
-                    this.updateCoordinateDisplay(unConfiguredImage);
-                    this.updateSetupProgress();
-                    this.updateSetupImageDisplay(unConfiguredImage);
-                }
-            }
-            
-            addSetupMarker(image) {
-                if (!this.setupMap) return;
-                
-                const marker = L.marker([image.coordinates.lat, image.coordinates.lng])
-                    .addTo(this.setupMap)
-                    .bindPopup(`<strong>${image.name}</strong><br>${image.location || 'No description'}`);
-                
-                image.marker = marker;
-            }
-            
-            updateCoordinateDisplay(image) {
-                const coordsDisplay = document.getElementById(`coords-${image.id}`);
-                if (coordsDisplay && image.coordinates) {
-                    coordsDisplay.textContent = `Lat: ${image.coordinates.lat.toFixed(4)}, Lng: ${image.coordinates.lng.toFixed(4)}`;
-                }
-            }
-            
-            updateSetupImageDisplay(image) {
-                const setupItem = document.querySelector(`[data-id="${image.id}"]`)?.closest('.setup-image-item');
-                if (setupItem) {
-                    setupItem.classList.add('configured');
-                }
-            }
-            
-            updateSetupProgress() {
-                const progressIndicator = document.getElementById('setup-progress');
-                const startGameBtn = document.getElementById('start-game');
-                
-                const configuredCount = this.uploadedImages.filter(img => img.coordinates).length;
-                const totalCount = this.uploadedImages.length;
-                
-                if (progressIndicator) {
-                    progressIndicator.textContent = `${configuredCount} of ${totalCount} images configured`;
-                }
-                
-                if (startGameBtn) {
-                    startGameBtn.disabled = configuredCount !== totalCount || totalCount === 0;
-                }
-            }
-            
-            startGame() {
-                // Reset game state
-                this.gameState = {
-                    currentRound: 0,
-                    totalRounds: this.uploadedImages.length,
-                    currentGuess: null,
-                    roundInProgress: true,
-                    showingResults: false,
-                    processing: false
-                };
-                
-                this.gameImages = [...this.uploadedImages];
-                this.currentRound = 0;
-                this.score = 0;
-                this.roundResults = [];
-                
-                this.showSection('game-section');
-                this.initializeGameMap();
-                this.startRound();
-            }
-            
-            initializeGameMap() {
-                const mapContainer = document.getElementById('game-map');
-                if (!mapContainer) return;
-                
-                // Clear existing map
-                if (this.gameMap) {
-                    this.gameMap.remove();
-                }
-                
-                this.gameMap = L.map('game-map').setView(this.mapConfig.defaultCenter, this.mapConfig.defaultZoom);
-                
-                L.tileLayer(this.mapConfig.tileLayer, {
-                    attribution: this.mapConfig.attribution,
-                    maxZoom: this.mapConfig.maxZoom,
-                    minZoom: this.mapConfig.minZoom
-                }).addTo(this.gameMap);
-                
-                this.gameMap.on('click', (e) => {
-                    this.handleGameMapClick(e);
-                });
-                
-                this.currentGameMarkers = [];
-            }
-            
-            startRound() {
-                if (this.currentRound >= this.gameImages.length) {
-                    this.showResults();
-                    return;
-                }
-                
-                const currentImage = this.gameImages[this.currentRound];
-                
-                // Update UI
-                document.getElementById('round-info').textContent = `Round ${this.currentRound + 1} of ${this.gameImages.length}`;
-                document.getElementById('current-image').src = currentImage.originalSrc;
-                document.getElementById('game-status').textContent = 'Click on the map to place your guess';
-                
-                // Reset game state
-                this.gameState.currentGuess = null;
-                this.gameState.showingResults = false;
-                this.gameState.processing = false;
-                
-                // Reset UI
-                document.getElementById('submit-guess').disabled = true;
-                document.getElementById('round-result').style.display = 'none';
-                
-                // Clear previous markers
-                this.currentGameMarkers.forEach(marker => {
-                    if (this.gameMap) {
-                        this.gameMap.removeLayer(marker);
-                    }
-                });
-                this.currentGameMarkers = [];
-            }
-            
-            handleGameMapClick(e) {
-                if (this.gameState.showingResults || this.gameState.processing) {
-                    return;
-                }
-                
-                const { lat, lng } = e.latlng;
-                this.gameState.currentGuess = { lat, lng };
-                
-                // Clear previous guess markers
-                this.currentGameMarkers.forEach(marker => {
-                    if (this.gameMap) {
-                        this.gameMap.removeLayer(marker);
-                    }
-                });
-                this.currentGameMarkers = [];
-                
-                // Add new guess marker
-                const guessMarker = L.marker([lat, lng])
-                    .addTo(this.gameMap)
-                    .bindPopup('Your guess');
-                
-                this.currentGameMarkers.push(guessMarker);
-                
-                // Update UI
-                document.getElementById('submit-guess').disabled = false;
-                document.getElementById('game-status').textContent = 'Click "Submit Guess" to see results';
-            }
-            
-            submitGuess() {
-                if (!this.gameState.currentGuess || this.gameState.processing) {
-                    return;
-                }
-                
-                this.gameState.processing = true;
-                document.getElementById('submit-guess').disabled = true;
-                document.getElementById('game-status').textContent = 'Processing your guess...';
-                
-                const currentImage = this.gameImages[this.currentRound];
-                const distance = this.calculateDistance(
-                    this.gameState.currentGuess,
-                    currentImage.coordinates
-                );
-                
-                const points = this.calculatePoints(distance);
-                
-                // Add correct location marker
-                const correctMarker = L.marker([currentImage.coordinates.lat, currentImage.coordinates.lng])
-                    .addTo(this.gameMap)
-                    .bindPopup(`Correct location: ${currentImage.location}`);
-                
-                this.currentGameMarkers.push(correctMarker);
-                
-                // Add line between guess and correct location
-                const line = L.polyline([
-                    [this.gameState.currentGuess.lat, this.gameState.currentGuess.lng],
-                    [currentImage.coordinates.lat, currentImage.coordinates.lng]
-                ], {color: 'red'}).addTo(this.gameMap);
-                
-                this.currentGameMarkers.push(line);
-                
-                // Store round result
-                const roundResult = {
-                    round: this.currentRound + 1,
-                    image: currentImage,
-                    guess: this.gameState.currentGuess,
-                    distance: distance,
-                    points: points
-                };
-                
-                this.roundResults.push(roundResult);
-                this.score += points;
-                
-                // Show results
-                this.showRoundResult(roundResult);
-                
-                this.gameState.showingResults = true;
-                this.gameState.processing = false;
-            }
-            
-            showRoundResult(result) {
-                document.getElementById('guess-location').textContent = `${result.guess.lat.toFixed(4)}, ${result.guess.lng.toFixed(4)}`;
-                document.getElementById('actual-location').textContent = result.image.location || 'Unknown';
-                document.getElementById('round-distance').textContent = `${Math.round(result.distance)} km`;
-                document.getElementById('round-points').textContent = result.points;
-                
-                document.getElementById('round-result').style.display = 'block';
-                document.getElementById('game-status').textContent = 'Round complete!';
-            }
-            
-            nextRound() {
-                this.currentRound++;
-                this.gameState.currentRound = this.currentRound;
-                
-                if (this.currentRound >= this.gameImages.length) {
-                    this.showResults();
-                } else {
-                    this.startRound();
-                }
-            }
-            
-            showResults() {
-                this.showSection('results-section');
-                
-                const maxPossibleScore = this.gameImages.length * this.settings.maxScore;
-                const percentage = Math.round((this.score / maxPossibleScore) * 100);
-                
-                document.getElementById('final-score').textContent = `${this.score} / ${maxPossibleScore}`;
-                document.getElementById('final-percentage').textContent = `${percentage}% Accuracy`;
-                
-                // Show round breakdown
-                const resultsList = document.getElementById('results-list');
-                resultsList.innerHTML = '';
-                
-                this.roundResults.forEach(result => {
-                    const roundDiv = document.createElement('div');
-                    roundDiv.className = 'round-summary';
-                    roundDiv.innerHTML = `
-                        <span>Round ${result.round}: ${result.image.name}</span>
-                        <span>${Math.round(result.distance)} km - ${result.points} points</span>
-                    `;
-                    resultsList.appendChild(roundDiv);
-                });
-            }
-            
-            calculateDistance(coord1, coord2) {
-                const R = 6371; // Earth's radius in kilometers
-                const dLat = this.toRad(coord2.lat - coord1.lat);
-                const dLng = this.toRad(coord2.lng - coord1.lng);
-                const lat1 = this.toRad(coord1.lat);
-                const lat2 = this.toRad(coord2.lat);
-                
-                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                          Math.sin(dLng/2) * Math.sin(dLng/2) * Math.cos(lat1) * Math.cos(lat2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                
-                return R * c;
-            }
-            
-            toRad(value) {
-                return value * Math.PI / 180;
-            }
-            
-            calculatePoints(distance) {
-                if (distance <= this.settings.perfectDistance) {
-                    return this.settings.maxScore;
-                } else if (distance <= this.settings.goodDistance) {
-                    return Math.round(this.settings.maxScore * 0.8);
-                } else if (distance <= this.settings.okDistance) {
-                    return Math.round(this.settings.maxScore * 0.5);
-                } else if (distance <= this.settings.farDistance) {
-                    return Math.round(this.settings.maxScore * 0.2);
-                } else {
-                    return 0;
-                }
-            }
-            
-            resetGame() {
-                // Reset all game data
-                this.currentRound = 0;
-                this.score = 0;
-                this.roundResults = [];
-                this.gameState = {
-                    currentRound: 0,
-                    totalRounds: 0,
-                    currentGuess: null,
-                    roundInProgress: false,
-                    showingResults: false,
-                    processing: false
-                };
-                
-                // Clear maps
-                if (this.gameMap) {
-                    this.gameMap.remove();
-                    this.gameMap = null;
-                }
-                
-                if (this.setupMap) {
-                    this.setupMap.remove();
-                    this.setupMap = null;
-                }
-                
-                // Reset demo mode
-                if (this.demoMode) {
-                    this.demoMode = false;
-                    this.uploadedImages = [];
-                }
-                
-                // Clear timer
-                if (this.gameTimer) {
-                    clearInterval(this.gameTimer);
-                    this.gameTimer = null;
-                }
-            }
-        }
+      // Event listeners
+      // Upload area click/focus/drag-drop
+      this.uploadArea.addEventListener("click", () => this.fileInput.click());
+      this.uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        this.uploadArea.classList.add("drag-over");
+      });
+      this.uploadArea.addEventListener("dragleave", () => {
+        this.uploadArea.classList.remove("drag-over");
+      });
+      this.uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        this.uploadArea.classList.remove("drag-over");
+        this.handleFiles(e.dataTransfer.files);
+      });
+      this.fileInput.addEventListener("change", (e) =>
+        this.handleFiles(e.target.files)
+      );
 
-        // Initialize the game when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new CustomGeoGuesser();
+      this.csvFileInput.addEventListener("change", (e) =>
+        this.processCSVFile(e.target.files)
+      );
+
+      this.continueSetupBtn.addEventListener("click", () => this.showSetup());
+      this.tryDemoBtn.addEventListener("click", () => this.startDemo());
+      this.backToUploadBtn.addEventListener("click", () => this.showSection("upload-section"));
+      this.startGameBtn.addEventListener("click", () => this.startGame());
+
+      this.submitGuessBtn.addEventListener("click", () => this.submitGuess());
+      this.nextRoundBtn.addEventListener("click", () => this.nextRound());
+
+      this.playAgainBtn.addEventListener("click", () => {
+        this.resetGame();
+        this.startGame();
+      });
+      this.uploadNewBtn.addEventListener("click", () => {
+        this.resetGame();
+        this.showSection("upload-section");
+      });
+    }
+
+    showSection(id) {
+      document.querySelectorAll(".game-section").forEach((el) => {
+        el.classList.remove("active");
+      });
+      const sec = document.getElementById(id);
+      if (sec) sec.classList.add("active");
+    }
+
+    handleFiles(fileList) {
+      const files = Array.from(fileList).slice(0, this.settings.maxImages - this.images.length);
+      if (!files.length) return;
+
+      this.csvInfo.textContent = "";
+      let pendingExif = 0;
+      files.forEach((file) => {
+        if (!file.type.startsWith("image")) return;
+        pendingExif++;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const dataURL = evt.target.result;
+          // Create image record with basic info
+          const imageObj = {
+            id: Date.now() + Math.random(),
+            fileName: file.name,
+            size: this.formatFileSize(file.size),
+            thumbnail: dataURL,
+            originalSrc: dataURL,
+            location: null,
+            coordinates: null,
+            exifChecked: false,
+          };
+          this.images.push(imageObj);
+          this.extractExifCoordinates(file, imageObj, () => {
+            pendingExif--;
+            if (pendingExif === 0) {
+              this.displayUploadedImages();
+              this.updateContinueButton();
+              if (this.csvFileInput.files.length > 0) {
+                this.matchCSVLocations();
+              }
+            }
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+
+      this.continueSetupBtn.disabled = true;
+    }
+
+    extractExifCoordinates(file, imageObj, callback) {
+      try {
+        EXIF.getData(file, function () {
+          const lat = EXIF.getTag(this, "GPSLatitude");
+          const lon = EXIF.getTag(this, "GPSLongitude");
+          const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
+          const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "E";
+
+          if (lat && lon) {
+            imageObj.coordinates = {
+              lat: convertDMSToDD(lat, latRef),
+              lng: convertDMSToDD(lon, lonRef),
+            };
+          }
+          imageObj.exifChecked = true;
+          callback();
         });
-    </script>
+      } catch (e) {
+        imageObj.exifChecked = true;
+        callback();
+      }
+
+      function convertDMSToDD(dms, ref) {
+        const [deg, min, sec] = dms;
+        let dd = deg + min / 60 + sec / 3600;
+        if (ref === "S" || ref === "W") dd = dd * -1;
+        return dd;
+      }
+    }
+
+    displayUploadedImages() {
+      this.uploadImagesContainer.innerHTML = "";
+      this.images.forEach((img) => {
+        const div = document.createElement("div");
+        div.className = "uploaded-image-item";
+        div.title = img.fileName;
+        div.innerHTML = `
+          <img src="${img.thumbnail}" alt="Thumbnail of ${img.fileName}" />
+          <button class="remove-image" aria-label="Remove ${img.fileName}" data-id="${img.id}">&times;</button>
+          `;
+        div.querySelector(".remove-image").onclick = () => {
+          this.images = this.images.filter((i) => i.id !== img.id);
+          this.displayUploadedImages();
+          this.updateContinueButton();
+        };
+        this.uploadImagesContainer.appendChild(div);
+      });
+    }
+
+    updateContinueButton() {
+      this.continueSetupBtn.disabled = this.images.length === 0;
+    }
+
+    processCSVFile(files) {
+      if (!files.length) {
+        this.csvInfo.textContent = "";
+        this.locationsFromCSV = {};
+        return;
+      }
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        this.parseCSV(text);
+      };
+      reader.readAsText(file);
+    }
+
+    parseCSV(csvText) {
+      // Expecting CSV: filename,lat,lng,location(optional)
+      this.locationsFromCSV = {};
+      let lines = csvText.trim().split("\n");
+
+      lines.forEach((line, index) => {
+        if (!line.trim()) return;
+        const parts = line.split(",");
+        if (parts.length < 3) return;
+        const filename = parts[0].trim();
+        const lat = parseFloat(parts[1]);
+        const lng = parseFloat(parts[2]);
+        const loc = parts[3]?.trim() || "";
+        if (
+          filename &&
+          !isNaN(lat) &&
+          !isNaN(lng) &&
+          lat >= -90 &&
+          lat <= 90 &&
+          lng >= -180 &&
+          lng <= 180
+        ) {
+          this.locationsFromCSV[filename.toLowerCase()] = {
+            lat,
+            lng,
+            location: loc,
+          };
+        }
+      });
+
+      this.csvInfo.textContent =
+        "CSV loaded: Found " +
+        Object.keys(this.locationsFromCSV).length +
+        " location entries.";
+      this.matchCSVLocations();
+    }
+
+    matchCSVLocations() {
+      if (!this.locationsFromCSV) return;
+      let updatedCount = 0;
+      this.images.forEach((img) => {
+        if (img.coordinates) return; // Keeps EXIF coords
+        const locData =
+          this.locationsFromCSV[img.fileName.toLowerCase()] ||
+          this.locationsFromCSV[img.fileName.toLowerCase().replace(/\s/g, "")];
+        if (locData) {
+          img.coordinates = { lat: locData.lat, lng: locData.lng };
+          if (locData.location) img.location = locData.location;
+          updatedCount++;
+        }
+      });
+
+      // Update display if we're still in upload phase
+      if (document.getElementById("upload-section").classList.contains("active")) {
+        this.displayUploadedImages();
+        this.updateContinueButton();
+      }
+    }
+
+    showSetup() {
+      this.showSection("setup-section");
+      this.renderSetupImages();
+      this.initSetupMap();
+    }
+
+    renderSetupImages() {
+      this.setupImagesContainer.innerHTML = "";
+      this.images.forEach((img) => {
+        const div = document.createElement("div");
+        div.className = "setup-image-item";
+
+        div.innerHTML = `
+          <img src="${img.thumbnail}" alt="Setup thumbnail ${img.fileName}" />
+          <input type="text" data-id="${img.id}" value="${img.location || ""}" placeholder="Optional description" class="location-input" />
+          <div class="coordinates-display" id="coords-${img.id}">${
+          img.coordinates
+            ? `Lat: ${img.coordinates.lat.toFixed(4)}, Lng: ${img.coordinates.lng.toFixed(4)}`
+            : "Click map to set"
+        }</div>
+        `;
+        const input = div.querySelector(".location-input");
+        input.addEventListener("input", (e) => {
+          const toEdit = this.images.find((i) => i.id === img.id);
+          if (toEdit) toEdit.location = e.target.value;
+        });
+        this.setupImagesContainer.appendChild(div);
+      });
+
+      document
+        .getElementById("start-game")
+        .setAttribute("disabled", "disabled"); // Disable initially until all set
+
+      this.checkAllLocations();
+    }
+
+    checkAllLocations() {
+      const allSet = this.images.every((img) => img.coordinates != null);
+      this.startGameBtn.disabled = !allSet || this.images.length === 0;
+    }
+
+    initSetupMap() {
+      if (this.setupMap) {
+        this.setupMap.off();
+        this.setupMap.remove();
+      }
+      this.setupMap = L.map("setup-map").setView(
+        this.mapConfig.center,
+        this.mapConfig.zoom
+      );
+      L.tileLayer(this.mapConfig.tileLayer, {
+        attribution: this.mapConfig.attribution,
+        maxZoom: 18,
+        minZoom: 1,
+      }).addTo(this.setupMap);
+
+      this.setupMap.on("click", (e) => this.onSetupMapClick(e));
+
+      // Add markers on existing locations
+      this.images.forEach((img) => {
+        if (img.coordinates) {
+          img._marker = L.marker([img.coordinates.lat, img.coordinates.lng], {
+            draggable: true,
+          })
+            .addTo(this.setupMap)
+            .bindPopup(img.fileName);
+
+          img._marker.on("dragend", (event) => {
+            const marker = event.target;
+            const pos = marker.getLatLng();
+            img.coordinates = { lat: pos.lat, lng: pos.lng };
+            const coordsDisp = document.getElementById(`coords-${img.id}`);
+            if (coordsDisp) {
+              coordsDisp.textContent = `Lat: ${pos.lat.toFixed(
+                4
+              )}, Lng: ${pos.lng.toFixed(4)}`;
+            }
+            this.checkAllLocations();
+          });
+        }
+      });
+
+      this.checkAllLocations();
+    }
+
+    onSetupMapClick(e) {
+      const imgWithoutCoords = this.images.find((img) => !img.coordinates);
+      if (!imgWithoutCoords) return;
+
+      imgWithoutCoords.coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
+      const coordsDisp = document.getElementById(`coords-${imgWithoutCoords.id}`);
+      if (coordsDisp) {
+        coordsDisp.textContent = `Lat: ${e.latlng.lat.toFixed(
+          4
+        )}, Lng: ${e.latlng.lng.toFixed(4)}`;
+      }
+
+      if (imgWithoutCoords._marker) {
+        this.setupMap.removeLayer(imgWithoutCoords._marker);
+      }
+      imgWithoutCoords._marker = L.marker([e.latlng.lat, e.latlng.lng], {
+        draggable: true,
+      })
+        .addTo(this.setupMap)
+        .bindPopup(imgWithoutCoords.fileName);
+
+      imgWithoutCoords._marker.on("dragend", (event) => {
+        const marker = event.target;
+        const pos = marker.getLatLng();
+        imgWithoutCoords.coordinates = { lat: pos.lat, lng: pos.lng };
+        if (coordsDisp) {
+          coordsDisp.textContent = `Lat: ${pos.lat.toFixed(
+            4
+          )}, Lng: ${pos.lng.toFixed(4)}`;
+        }
+        this.checkAllLocations();
+      });
+
+      this.checkAllLocations();
+    }
+
+    startGame() {
+      this.gameImages = [...this.images];
+      this.currentRound = 0;
+      this.score = 0;
+      this.roundResults = [];
+
+      this.showSection("game-section");
+      this.initGameMap();
+      this.loadCurrentRound();
+    }
+
+    initGameMap() {
+      if (this.gameMap) {
+        this.gameMap.off();
+        this.gameMap.remove();
+      }
+      this.gameMap = L.map("game-map").setView(this.mapConfig.center, this.mapConfig.zoom);
+      L.tileLayer(this.mapConfig.tileLayer, {
+        attribution: this.mapConfig.attribution,
+        maxZoom: 18,
+        minZoom: 1,
+      }).addTo(this.gameMap);
+
+      this.gameMap.on("click", (e) => this.onGameMapClick(e));
+      this.currentMarkers = [];
+      this.gameState.currentGuess = null;
+      this.submitGuessBtn.disabled = true;
+      this.nextRoundBtn.style.display = "none";
+      this.roundResult.style.display = "none";
+      this.gameStatus.textContent = "Click on the map to place your guess";
+    }
+
+    loadCurrentRound() {
+      if (this.currentRound >= this.gameImages.length) {
+        this.showResults();
+        return;
+      }
+      const img = this.gameImages[this.currentRound];
+      this.roundInfo.textContent = `Round ${this.currentRound + 1} of ${
+        this.gameImages.length
+      }`;
+      this.currentImage.src = img.originalSrc;
+      this.gameState.currentGuess = null;
+      this.submitGuessBtn.disabled = true;
+      this.nextRoundBtn.style.display = "none";
+      this.roundResult.style.display = "none";
+
+      this.currentMarkers.forEach((m) => this.gameMap.removeLayer(m));
+      this.currentMarkers = [];
+      this.gameStatus.textContent = "Click on the map to place your guess";
+    }
+
+    onGameMapClick(e) {
+      if (this.gameState.showingResults || this.gameState.processing) return;
+
+      this.gameState.currentGuess = { lat: e.latlng.lat, lng: e.latlng.lng };
+
+      this.currentMarkers.forEach((m) => this.gameMap.removeLayer(m));
+      this.currentMarkers = [];
+
+      const guessMarker = L.marker([e.latlng.lat, e.latlng.lng])
+        .addTo(this.gameMap)
+        .bindPopup("Your Guess")
+        .openPopup();
+      this.currentMarkers.push(guessMarker);
+
+      this.submitGuessBtn.disabled = false;
+      this.gameStatus.textContent = "Guess placed. Submit your guess!";
+    }
+
+    submitGuess() {
+      if (!this.gameState.currentGuess || this.gameState.processing) return;
+      this.gameState.processing = true;
+      this.submitGuessBtn.disabled = true;
+      this.gameStatus.textContent = "Processing your guess...";
+      const currentImage = this.gameImages[this.currentRound];
+      const distance = this.calcDistance(
+        this.gameState.currentGuess,
+        currentImage.coordinates
+      );
+      const points = this.calcPoints(distance);
+
+      const correctMarker = L.marker([
+        currentImage.coordinates.lat,
+        currentImage.coordinates.lng,
+      ])
+        .addTo(this.gameMap)
+        .bindPopup(`Correct: ${currentImage.location || "Unknown Location"}`)
+        .openPopup();
+
+      this.currentMarkers.push(correctMarker);
+
+      const line = L.polyline(
+        [
+          [this.gameState.currentGuess.lat, this.gameState.currentGuess.lng],
+          [currentImage.coordinates.lat, currentImage.coordinates.lng],
+        ],
+        { color: "red" }
+      ).addTo(this.gameMap);
+
+      this.currentMarkers.push(line);
+
+      this.score += points;
+
+      this.roundResults.push({
+        round: this.currentRound + 1,
+        image: currentImage,
+        guess: this.gameState.currentGuess,
+        distance: distance,
+        points: points,
+      });
+
+      this.showRoundResult(distance, points, currentImage);
+
+      this.gameState.showingResults = true;
+      this.gameState.processing = false;
+      this.nextRoundBtn.style.display = "inline-block";
+      this.gameStatus.textContent = "Round complete! Click next round.";
+    }
+
+    showRoundResult(distance, points, image) {
+      this.guessLocation.textContent = `${this.gameState.currentGuess.lat.toFixed(
+        4
+      )}, ${this.gameState.currentGuess.lng.toFixed(4)}`;
+      this.actualLocation.textContent = image.location || "Unknown Location";
+      this.roundDistance.textContent = `${Math.round(distance)} km`;
+      this.roundPoints.textContent = points;
+
+      this.roundResult.style.display = "block";
+    }
+
+    nextRound() {
+      this.currentRound++;
+      this.gameState.currentGuess = null;
+      this.gameState.showingResults = false;
+      this.submitGuessBtn.disabled = true;
+      this.nextRoundBtn.style.display = "none";
+      this.roundResult.style.display = "none";
+
+      if (this.currentRound >= this.gameImages.length) {
+        this.showResults();
+      } else {
+        this.loadCurrentRound();
+      }
+    }
+
+    showResults() {
+      this.showSection("results-section");
+      const maxScore = this.gameImages.length * this.settings.maxScore;
+      this.finalScore.textContent = `${this.score} / ${maxScore}`;
+      const pct = Math.round((this.score / maxScore) * 100);
+      this.finalPercentage.textContent = `${pct}% Accuracy`;
+
+      this.resultsList.innerHTML = "";
+      this.roundResults.forEach((res) => {
+        const div = document.createElement("div");
+        div.className = "round-summary";
+        div.textContent = `Round ${res.round}: ${res.image.fileName} - ${Math.round(
+          res.distance
+        )} km, ${res.points} points`;
+        this.resultsList.appendChild(div);
+      });
+    }
+
+    resetGame() {
+      this.images = [];
+      this.locationsFromCSV = {};
+      this.currentRound = 0;
+      this.score = 0;
+      this.roundResults = [];
+      this.gameState = {
+        currentGuess: null,
+        roundInProgress: false,
+        showingResults: false,
+        processing: false,
+      };
+
+      this.fileInput.value = "";
+      this.csvFileInput.value = "";
+      this.csvInfo.textContent = "";
+      this.uploadImagesContainer.innerHTML = "";
+      this.setupImagesContainer.innerHTML = "";
+      if (this.setupMap) {
+        this.setupMap.off();
+        this.setupMap.remove();
+        this.setupMap = null;
+      }
+      if (this.gameMap) {
+        this.gameMap.off();
+        this.gameMap.remove();
+        this.gameMap = null;
+      }
+      this.showSection("upload-section");
+    }
+
+    formatFileSize(bytes) {
+      if (bytes === 0) return "0 Bytes";
+      const k = 1024,
+        sizes = ["Bytes", "KB", "MB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+    }
+
+    calcDistance(coord1, coord2) {
+      const R = 6371; // km
+      const dLat = this.toRad(coord2.lat - coord1.lat);
+      const dLng = this.toRad(coord2.lng - coord1.lng);
+      const lat1 = this.toRad(coord1.lat);
+      const lat2 = this.toRad(coord2.lat);
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLng / 2) *
+          Math.sin(dLng / 2) *
+          Math.cos(lat1) *
+          Math.cos(lat2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    toRad(val) {
+      return (val * Math.PI) / 180;
+    }
+
+    calcPoints(distance) {
+      if (distance <= this.settings.perfectDistance) {
+        return this.settings.maxScore;
+      } else if (distance <= this.settings.goodDistance) {
+        return Math.round(this.settings.maxScore * 0.8);
+      } else if (distance <= this.settings.okDistance) {
+        return Math.round(this.settings.maxScore * 0.5);
+      } else if (distance <= this.settings.farDistance) {
+        return Math.round(this.settings.maxScore * 0.2);
+      } else {
+        return 0;
+      }
+    }
+
+    startDemo() {
+      this.images = [
+        {
+          id: "demo1",
+          fileName: "EiffelTower.jpg",
+          size: "Demo",
+          thumbnail:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/320px-Tour_Eiffel_Wikimedia_Commons.jpg",
+          originalSrc:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/640px-Tour_Eiffel_Wikimedia_Commons.jpg",
+          coordinates: { lat: 48.8584, lng: 2.2945 },
+          location: "Eiffel Tower, Paris, France",
+        },
+        {
+          id: "demo2",
+          fileName: "TimesSquare.jpg",
+          size: "Demo",
+          thumbnail:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Times_Square%2C_New_York_City_%28HDR%29.jpg/320px-Times_Square%2C_New_York_City_%28HDR%29.jpg",
+          originalSrc:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Times_Square%2C_New_York_City_%28HDR%29.jpg/640px-Times_Square%2C_New_York_City_%28HDR%29.jpg",
+          coordinates: { lat: 40.7589, lng: -73.9851 },
+          location: "Times Square, New York, USA",
+        },
+        {
+          id: "demo3",
+          fileName: "SydneyOperaHouse.jpg",
+          size: "Demo",
+          thumbnail:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Sydney_Opera_House_-_Dec_2008.jpg/320px-Sydney_Opera_House_-_Dec_2008.jpg",
+          originalSrc:
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Sydney_Opera_House_-_Dec_2008.jpg/640px-Sydney_Opera_House_-_Dec_2008.jpg",
+          coordinates: { lat: -33.8568, lng: 151.2153 },
+          location: "Sydney Opera House, Sydney, Australia",
+        },
+      ];
+      this.continueSetupBtn.disabled = false;
+      this.showSetup();
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    new GeoGuesser();
+  });
+</script>
 </body>
 </html>
