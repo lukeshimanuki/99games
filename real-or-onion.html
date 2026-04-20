@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real or Onion?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300..700&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f7f6f2;--surface:#f9f8f5;--surface2:#fbfbf9;--offset:#f0ede8;
+  --divider:#dcd9d5;--border:#d4d1ca;
+  --text:#28251d;--muted:#7a7974;--faint:#bab9b4;--inverse:#f9f8f4;
+  --primary:#01696f;--primary-h:#0c4e54;--primary-hi:#cedcd8;
+  --success:#437a22;--success-h:#2e5c10;--success-hi:#d4dfcc;
+  --error:#a12c7b;--error-h:#7d1e5e;--error-hi:#e0ced7;
+  --sh-sm:0 1px 2px rgba(40,37,29,.07);
+  --sh-md:0 4px 12px rgba(40,37,29,.10);
+  --sh-lg:0 12px 32px rgba(40,37,29,.14);
+  --r-sm:.375rem;--r-md:.5rem;--r-lg:.75rem;--r-xl:1rem;--r-full:9999px;
+  --ease:180ms cubic-bezier(.16,1,.3,1);
+  --font-d:'Instrument Serif',Georgia,serif;
+  --font-b:'DM Sans','Helvetica Neue',sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#171614;--surface:#1c1b19;--surface2:#201f1d;--offset:#222120;
+  --divider:#262523;--border:#393836;
+  --text:#cdccca;--muted:#797876;--faint:#5a5957;--inverse:#2b2a28;
+  --primary:#4f98a3;--primary-h:#227f8b;--primary-hi:#313b3b;
+  --success:#6daa45;--success-h:#4d8f25;--success-hi:#3a4435;
+  --error:#d163a7;--error-h:#b9478f;--error-hi:#4c3d46;
+  --sh-sm:0 1px 2px rgba(0,0,0,.25);
+  --sh-md:0 4px 12px rgba(0,0,0,.35);
+  --sh-lg:0 12px 32px rgba(0,0,0,.45);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;}
+body{
+  min-height:100dvh;font-family:var(--font-b);
+  font-size:clamp(1rem,.95rem + .25vw,1.125rem);
+  color:var(--text);background:var(--bg);
+  transition:background var(--ease),color var(--ease);
+}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:var(--r-sm);}
+.app{min-height:100dvh;display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem 4rem;}
+header{width:100%;max-width:680px;display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:1px solid var(--divider);margin-bottom:2rem;}
+.logo{display:flex;align-items:center;gap:.75rem;}
+.logo-text{font-family:var(--font-d);font-size:clamp(1.125rem,1rem + .75vw,1.5rem);font-style:italic;}
+.logo-text span{color:var(--primary);font-style:normal;}
+.theme-btn{width:36px;height:36px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;color:var(--muted);transition:color var(--ease),background var(--ease);}
+.theme-btn:hover{background:var(--offset);color:var(--text);}
+.score-bar{width:100%;max-width:680px;display:flex;align-items:center;gap:1rem;margin-bottom:2rem;}
+.pill{display:flex;align-items:center;gap:.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-full);padding:.5rem 1rem;font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:500;box-shadow:var(--sh-sm);white-space:nowrap;}
+.dot{width:8px;height:8px;border-radius:var(--r-full);flex-shrink:0;}
+.dot-g{background:var(--success);}
+.dot-r{background:var(--error);}
+.pill .n{color:var(--text);font-weight:600;}
+.pill .l{color:var(--muted);}
+.prog-wrap{flex:1;display:flex;flex-direction:column;gap:4px;}
+.prog-lbl{font-size:clamp(.75rem,.7rem + .25vw,.875rem);color:var(--muted);text-align:right;}
+.prog-track{height:6px;background:var(--offset);border-radius:var(--r-full);overflow:hidden;}
+.prog-fill{height:100%;background:var(--primary);border-radius:var(--r-full);transition:width .4s cubic-bezier(.16,1,.3,1);}
+.card{width:100%;max-width:680px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-md);padding:2rem 2rem 1.5rem;}
+.card-meta{font-size:clamp(.75rem,.7rem + .25vw,.875rem);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:1.25rem;}
+.headline{font-family:var(--font-d);font-size:clamp(1.25rem,1rem + 1.5vw,2rem);line-height:1.3;color:var(--text);margin-bottom:2rem;min-height:3.5em;}
+.btn-group{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem;}
+.btn-choice{padding:1rem 1.25rem;border-radius:var(--r-lg);border:1.5px solid var(--border);background:var(--surface2);font-family:var(--font-b);font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:center;gap:.5rem;transition:all var(--ease);min-height:56px;}
+.btn-choice:hover:not(:disabled){border-color:var(--primary);background:var(--primary-hi);color:var(--primary);box-shadow:var(--sh-sm);transform:translateY(-1px);}
+.btn-choice:active:not(:disabled){transform:translateY(0);}
+.btn-choice:disabled{cursor:default;}
+.btn-choice.correct{border-color:var(--success);background:var(--success-hi);color:var(--success);}
+.btn-choice.wrong{border-color:var(--error);background:var(--error-hi);color:var(--error);}
+.btn-choice.reveal{border-color:var(--success);background:var(--success-hi);color:var(--success);}
+.feedback{border-radius:var(--r-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:500;display:none;align-items:flex-start;gap:.75rem;}
+.feedback.show{display:flex;animation:slideIn .2s cubic-bezier(.16,1,.3,1);}
+.fb-ok{background:var(--success-hi);color:var(--success);border:1px solid rgba(67,122,34,.25);}
+.fb-err{background:var(--error-hi);color:var(--error);border:1px solid rgba(161,44,123,.25);}
+.fb-body{line-height:1.5;}
+.fb-body strong{display:block;margin-bottom:2px;}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.btn-next{width:100%;padding:1rem 1.5rem;border-radius:var(--r-lg);background:var(--primary);color:var(--inverse);font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;display:none;align-items:center;justify-content:center;gap:.5rem;transition:background var(--ease),transform var(--ease),box-shadow var(--ease);box-shadow:var(--sh-sm);}
+.btn-next:hover{background:var(--primary-h);box-shadow:var(--sh-md);transform:translateY(-1px);}
+.btn-next:active{transform:translateY(0);}
+.btn-next.show{display:flex;}
+.results{width:100%;max-width:680px;display:none;flex-direction:column;align-items:center;text-align:center;gap:1.5rem;}
+.results.show{display:flex;animation:slideIn .3s cubic-bezier(.16,1,.3,1);}
+.results-card{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.5rem 2rem;box-shadow:var(--sh-lg);}
+.r-emoji{font-size:3rem;margin-bottom:1rem;}
+.r-title{font-family:var(--font-d);font-size:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);color:var(--text);margin-bottom:.5rem;}
+.r-sub{color:var(--muted);margin-bottom:2rem;}
+.r-score{font-family:var(--font-d);font-size:clamp(3rem,5vw,5rem);color:var(--primary);line-height:1;margin-bottom:.5rem;}
+.r-score-lbl{color:var(--muted);font-size:clamp(.875rem,.8rem + .35vw,1rem);margin-bottom:2rem;}
+.r-breakdown{display:flex;gap:1rem;justify-content:center;margin-bottom:2rem;}
+.r-item{flex:1;background:var(--offset);border-radius:var(--r-lg);padding:1rem;max-width:140px;}
+.r-num{font-family:var(--font-d);font-size:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);margin-bottom:4px;}
+.r-item-lbl{font-size:clamp(.75rem,.7rem + .25vw,.875rem);color:var(--muted);}
+.r-item.g .r-num{color:var(--success);}
+.r-item.b .r-num{color:var(--error);}
+.verdict{font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;color:var(--muted);background:var(--offset);border-radius:var(--r-lg);padding:.75rem 1.25rem;margin-bottom:2rem;}
+.btn-restart{padding:1rem 2.5rem;border-radius:var(--r-lg);background:var(--primary);color:var(--inverse);font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;transition:background var(--ease),transform var(--ease),box-shadow var(--ease);box-shadow:var(--sh-sm);}
+.btn-restart:hover{background:var(--primary-h);box-shadow:var(--sh-md);transform:translateY(-1px);}
+.btn-restart:active{transform:translateY(0);}
+@media(max-width:500px){
+  .card{padding:1.5rem 1.25rem 1.25rem;}
+  .btn-group{grid-template-columns:1fr;}
+  .results-card{padding:2rem 1.25rem;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 2" opacity="0.3"/>
+        <ellipse cx="16" cy="16" rx="8" ry="11" stroke="currentColor" stroke-width="1.5" opacity="0.55"/>
+        <ellipse cx="16" cy="16" rx="4" ry="7" fill="currentColor" opacity="0.18"/>
+        <line x1="16" y1="5" x2="16" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="18" y1="3" x2="16" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="logo-text">Real or <span>Onion?</span></span>
+    </div>
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+
+  <div class="score-bar" id="scoreBar">
+    <div class="pill"><div class="dot dot-g"></div><span class="n" id="cCount">0</span><span class="l">correct</span></div>
+    <div class="pill"><div class="dot dot-r"></div><span class="n" id="wCount">0</span><span class="l">wrong</span></div>
+    <div class="prog-wrap">
+      <div class="prog-lbl" id="progLbl">0 / 20</div>
+      <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div id="gameCard" class="card">
+    <div class="card-meta" id="cardMeta">Headline 1 of 20</div>
+    <p class="headline" id="hlText"></p>
+    <div class="btn-group">
+      <button class="btn-choice" id="btnReal">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Real News
+      </button>
+      <button class="btn-choice" id="btnOnion">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".7" fill="currentColor"/></svg>
+        The Onion
+      </button>
+    </div>
+    <div class="feedback" id="feedback">
+      <span class="fb-body" id="fbBody"></span>
+    </div>
+    <button class="btn-next" id="btnNext">
+      Next Headline
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+  </div>
+
+  <div class="results" id="results">
+    <div class="results-card">
+      <div class="r-emoji" id="rEmoji"></div>
+      <h1 class="r-title" id="rTitle"></h1>
+      <p class="r-sub">Here is how you did</p>
+      <div class="r-score" id="rScore"></div>
+      <div class="r-score-lbl">out of 20</div>
+      <div class="r-breakdown">
+        <div class="r-item g"><div class="r-num" id="rC"></div><div class="r-item-lbl">Correct</div></div>
+        <div class="r-item b"><div class="r-num" id="rW"></div><div class="r-item-lbl">Wrong</div></div>
+      </div>
+      <div class="verdict" id="rVerdict"></div>
+      <button class="btn-restart" id="btnRestart">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var HEADLINES = [
+    { text: "Hiker Lost for 24 Hours Ignored Calls From Rescuers Because He Did Not Recognize the Phone Number", source: "real" },
+    { text: "Man Who Owed $500,000 in Unpaid Fines Attempts to Flee Authorities by Paddleboarding Into the Ocean", source: "real" },
+    { text: "City Council Spends Three Meetings Debating Whether a Hot Dog Is Legally a Sandwich", source: "real" },
+    { text: "Man Fined $10,000 for Mowing His Own Lawn on the Wrong Day of the Week", source: "real" },
+    { text: "Library Closes for a Week After Staff Loses the Key and No One Remembers Where the Spare Is", source: "real" },
+    { text: "Company Accidentally Promotes Janitor to VP After Mixing Up Email Addresses During Restructuring", source: "real" },
+    { text: "Employee Fired for Eating Too Many Free Snacks Files Wrongful Termination Lawsuit", source: "real" },
+    { text: "Bear Enters Bakery, Eats Several Pastries, Leaves Without Incident; Staff Unsure What to Do", source: "real" },
+    { text: "Local Man Attempts to Sue Weather Service for Inaccurate Forecast That Ruined His Barbecue", source: "real" },
+    { text: "City Installs Bike Lane That Begins and Ends in the Same Parking Lot", source: "real" },
+    { text: "Search Party Calls Off Rescue After Realizing Missing Man Was Just Enjoying Some Quiet Time Alone", source: "onion" },
+    { text: "Man Insists He Did Not Steal Neighbor Lawn Mower, Just Borrowed It for the Past Four Years", source: "onion" },
+    { text: "Company Issues Apology After Sending Automated Birthday Email to Customer Who Had Not Been Born Yet", source: "onion" },
+    { text: "City Council Member Walks Out of Meeting After Colleagues Mispronounce His Name for the Eighth Time", source: "onion" },
+    { text: "New Study Finds That People Who Exercise Regularly Are Still Pretty Annoyed About Everything", source: "onion" },
+    { text: "Office Microwave Becomes Center of Workplace Conflict That Human Resources Refuses to Touch", source: "onion" },
+    { text: "Dog Elected Honorary Mayor of Small Town Takes Role More Seriously Than Previous Human Mayor", source: "onion" },
+    { text: "New Highway Rest Stop Opens With Fanfare, Closes Two Weeks Later After Running Out of Paper Towels", source: "onion" },
+    { text: "Local School Updates Emergency Plan to Include Scenarios That Have Already Happened", source: "onion" },
+    { text: "Study Confirms That Sending a Follow-Up Email One Hour After the First One Does Not Help", source: "onion" }
+  ];
+
+  var questions = [];
+  var current = 0;
+  var correct = 0;
+  var wrong = 0;
+  var answered = false;
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function el(id) { return document.getElementById(id); }
+
+  function init() {
+    questions = shuffle(HEADLINES);
+    current = 0; correct = 0; wrong = 0; answered = false;
+    el("results").className = "results";
+    el("gameCard").style.display = "";
+    el("scoreBar").style.display = "";
+    updateScore();
+    renderQ();
+  }
+
+  function renderQ() {
+    answered = false;
+    var q = questions[current];
+    el("hlText").textContent = q.text;
+    el("cardMeta").textContent = "Headline " + (current + 1) + " of " + questions.length;
+    el("btnReal").className = "btn-choice";
+    el("btnOnion").className = "btn-choice";
+    el("btnReal").disabled = false;
+    el("btnOnion").disabled = false;
+    el("feedback").className = "feedback";
+    el("btnNext").className = "btn-next";
+    var isLast = (current === questions.length - 1);
+    el("btnNext").textContent = isLast ? "See Results" : "Next Headline";
+  }
+
+  function guess(choice) {
+    if (answered) return;
+    answered = true;
+    var q = questions[current];
+    var ok = (choice === q.source);
+    if (ok) { correct++; } else { wrong++; }
+    updateScore();
+
+    el("btnReal").disabled = true;
+    el("btnOnion").disabled = true;
+
+    var clickedBtn = (choice === "real") ? el("btnReal") : el("btnOnion");
+    var correctBtn = (q.source === "real") ? el("btnReal") : el("btnOnion");
+
+    if (ok) {
+      clickedBtn.className = "btn-choice correct";
+    } else {
+      clickedBtn.className = "btn-choice wrong";
+      correctBtn.className = "btn-choice reveal";
+    }
+
+    var fb = el("feedback");
+    var body = el("fbBody");
+
+    if (ok) {
+      fb.className = "feedback show fb-ok";
+      if (q.source === "real") {
+        body.innerHTML = "<strong>Correct!</strong>This really happened. Truth is stranger than fiction.";
+      } else {
+        body.innerHTML = "<strong>Correct!</strong>Pure satire from The Onion.";
+      }
+    } else {
+      fb.className = "feedback show fb-err";
+      if (q.source === "real") {
+        body.innerHTML = "<strong>Not quite.</strong>This was actually a real news story.";
+      } else {
+        body.innerHTML = "<strong>Not quite.</strong>This was a satirical headline from The Onion.";
+      }
+    }
+
+    el("btnNext").className = "btn-next show";
+  }
+
+  function nextQ() {
+    if (current < questions.length - 1) {
+      current++;
+      renderQ();
+    } else {
+      showResults();
+    }
+  }
+
+  function updateScore() {
+    el("cCount").textContent = correct;
+    el("wCount").textContent = wrong;
+    var done = correct + wrong;
+    el("progLbl").textContent = done + " / " + questions.length;
+    el("progFill").style.width = ((done / questions.length) * 100) + "%";
+  }
+
+  function showResults() {
+    el("gameCard").style.display = "none";
+    el("scoreBar").style.display = "none";
+    el("results").className = "results show";
+    el("rScore").textContent = correct;
+    el("rC").textContent = correct;
+    el("rW").textContent = wrong;
+
+    var pct = correct / questions.length;
+    var emoji, title, verdict;
+    if (pct === 1) {
+      emoji = "trophy"; title = "Perfect Score!";
+      verdict = "You can tell news from satire with scary precision.";
+    } else if (pct >= 0.85) {
+      emoji = "target"; title = "Almost Perfect!";
+      verdict = "You have clearly spent too much time reading the news. Well done.";
+    } else if (pct >= 0.70) {
+      emoji = "sharp"; title = "Pretty Sharp!";
+      verdict = "You know your absurdity. Just a few headlines fooled you.";
+    } else if (pct >= 0.50) {
+      emoji = "thinking"; title = "Tricky Business...";
+      verdict = "Reality and satire are converging. Do not feel bad.";
+    } else if (pct >= 0.30) {
+      emoji = "dizzy"; title = "Fooled by Headlines";
+      verdict = "The Onion writers would be flattered. Reality is winning.";
+    } else {
+      emoji = "onion"; title = "The Onion Wins Again";
+      verdict = "Reality has defeated you. The news is just too weird.";
+    }
+
+    var emojiMap = { trophy: "trophy", target: "target", sharp: "sharp", thinking: "thinking", dizzy: "dizzy", onion: "onion" };
+    var display = { trophy: "\ud83c\udfc6", target: "\ud83c\udfaf", sharp: "\ud83d\ude0f", thinking: "\ud83e\udd14", dizzy: "\ud83d\ude35", onion: "\ud83e\uddc5" };
+    el("rEmoji").textContent = display[emoji];
+    el("rTitle").textContent = title;
+    el("rVerdict").textContent = verdict;
+  }
+
+  // Theme
+  var themeBtn = el("themeBtn");
+  var root = document.documentElement;
+  var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (dark) { root.setAttribute("data-theme", "dark"); }
+
+  function moonSVG() { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'; }
+  function sunSVG() { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'; }
+
+  function setThemeIcon() { themeBtn.innerHTML = dark ? sunSVG() : moonSVG(); }
+  setThemeIcon();
+  themeBtn.addEventListener("click", function() {
+    dark = !dark;
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+    setThemeIcon();
+  });
+
+  // Wire buttons
+  el("btnReal").addEventListener("click", function() { guess("real"); });
+  el("btnOnion").addEventListener("click", function() { guess("onion"); });
+  el("btnNext").addEventListener("click", nextQ);
+  el("btnRestart").addEventListener("click", init);
+
+  // Start
+  init();
+})();
+</script>
+</body>
+</html>
