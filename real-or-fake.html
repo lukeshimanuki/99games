@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real or Fake?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300..700&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f7f6f2;--surface:#f9f8f5;--surface2:#fbfbf9;--offset:#f0ede8;
+  --divider:#dcd9d5;--border:#d4d1ca;
+  --text:#28251d;--muted:#7a7974;--faint:#bab9b4;--inverse:#f9f8f4;
+  --primary:#01696f;--primary-h:#0c4e54;--primary-hi:#cedcd8;
+  --success:#2d6a1e;--success-h:#1f4d14;--success-hi:#dbeef2;
+  --error:#9c2743;--error-h:#781c32;--error-hi:#fae5eb;
+  --sh-sm:0 1px 2px rgba(40,37,29,.07);
+  --sh-md:0 4px 12px rgba(40,37,29,.10);
+  --sh-lg:0 12px 32px rgba(40,37,29,.14);
+  --r-sm:.375rem;--r-md:.5rem;--r-lg:.75rem;--r-xl:1rem;--r-full:9999px;
+  --ease:180ms cubic-bezier(.16,1,.3,1);
+  --font-d:'Instrument Serif',Georgia,serif;
+  --font-b:'DM Sans','Helvetica Neue',sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#171614;--surface:#1c1b19;--surface2:#201f1d;--offset:#222120;
+  --divider:#262523;--border:#393836;
+  --text:#cdccca;--muted:#797876;--faint:#5a5957;--inverse:#2b2a28;
+  --primary:#4f98a3;--primary-h:#227f8b;--primary-hi:#313b3b;
+  --success:#6daa45;--success-h:#4d8f25;--success-hi:#283824;
+  --error:#e0627e;--error-h:#b83e5a;--error-hi:#3e242b;
+  --sh-sm:0 1px 2px rgba(0,0,0,.25);
+  --sh-md:0 4px 12px rgba(0,0,0,.35);
+  --sh-lg:0 12px 32px rgba(0,0,0,.45);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;}
+body{
+  min-height:100dvh;font-family:var(--font-b);
+  font-size:clamp(1rem,.95rem + .25vw,1.125rem);
+  color:var(--text);background:var(--bg);
+  transition:background var(--ease),color var(--ease);
+}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:var(--r-sm);}
+.app{min-height:100dvh;display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem 4rem;}
+header{width:100%;max-width:680px;display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:1px solid var(--divider);margin-bottom:2rem;}
+.logo{display:flex;align-items:center;gap:.75rem;}
+.logo-text{font-family:var(--font-d);font-size:clamp(1.25rem,1.1rem + .75vw,1.65rem);font-style:italic;}
+.logo-text span{color:var(--primary);font-style:normal;}
+.theme-btn{width:36px;height:36px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;color:var(--muted);transition:color var(--ease),background var(--ease);}
+.theme-btn:hover{background:var(--offset);color:var(--text);}
+.score-bar{width:100%;max-width:680px;display:flex;align-items:center;gap:1rem;margin-bottom:2rem;}
+.pill{display:flex;align-items:center;gap:.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-full);padding:.5rem 1rem;font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:500;box-shadow:var(--sh-sm);white-space:nowrap;}
+.dot{width:8px;height:8px;border-radius:var(--r-full);flex-shrink:0;}
+.dot-g{background:var(--success);}
+.dot-r{background:var(--error);}
+.pill .n{color:var(--text);font-weight:600;}
+.pill .l{color:var(--muted);}
+.prog-wrap{flex:1;display:flex;flex-direction:column;gap:4px;}
+.prog-lbl{font-size:clamp(.75rem,.7rem + .25vw,.875rem);color:var(--muted);text-align:right;}
+.prog-track{height:6px;background:var(--offset);border-radius:var(--r-full);overflow:hidden;}
+.prog-fill{height:100%;background:var(--primary);border-radius:var(--r-full);transition:width .4s cubic-bezier(.16,1,.3,1);}
+.card{width:100%;max-width:680px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-md);padding:2rem 2rem 1.75rem;}
+.card-meta{font-size:clamp(.75rem,.7rem + .25vw,.875rem);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:1.25rem;}
+.headline{font-family:var(--font-d);font-size:clamp(1.3rem,1.05rem + 1.4vw,2.05rem);line-height:1.35;color:var(--text);margin-bottom:2rem;min-height:3.5em;}
+.btn-group{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem;}
+.btn-choice{padding:1rem 1.25rem;border-radius:var(--r-lg);border:1.5px solid var(--border);background:var(--surface2);font-family:var(--font-b);font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:center;gap:.5rem;transition:all var(--ease);min-height:56px;}
+.btn-choice:hover:not(:disabled){border-color:var(--primary);background:var(--primary-hi);color:var(--primary);box-shadow:var(--sh-sm);transform:translateY(-1px);}
+.btn-choice:active:not(:disabled){transform:translateY(0);}
+.btn-choice:disabled{cursor:default;}
+.btn-choice.correct{border-color:var(--success);background:var(--success-hi);color:var(--success);}
+.btn-choice.wrong{border-color:var(--error);background:var(--error-hi);color:var(--error);}
+.btn-choice.reveal{border-color:var(--success);background:var(--success-hi);color:var(--success);}
+.feedback{border-radius:var(--r-lg);padding:1.15rem 1.25rem;margin-bottom:1.25rem;font-size:clamp(.875rem,.8rem + .35vw,1rem);display:none;flex-direction:column;gap:.5rem;}
+.feedback.show{display:flex;animation:slideIn .2s cubic-bezier(.16,1,.3,1);}
+.fb-ok{background:var(--success-hi);color:var(--success);border:1px solid rgba(45,106,30,.25);}
+.fb-err{background:var(--error-hi);color:var(--error);border:1px solid rgba(156,39,67,.25);}
+.fb-verdict{font-size:1.025em;font-weight:700;display:flex;align-items:center;gap:.5rem;line-height:1.4;}
+.fb-detail{font-size:.935em;font-weight:400;line-height:1.55;color:var(--text);padding-top:.5rem;border-top:1px solid rgba(0,0,0,.08);}
+[data-theme="dark"] .fb-detail{border-top-color:rgba(255,255,255,.12);}
+.fb-tag{display:inline-block;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;padding:.15rem .45rem;border-radius:var(--r-sm);background:rgba(0,0,0,.08);color:var(--text);margin-right:.45rem;vertical-align:baseline;}
+[data-theme="dark"] .fb-tag{background:rgba(255,255,255,.12);}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.btn-next{width:100%;padding:1rem 1.5rem;border-radius:var(--r-lg);background:var(--primary);color:var(--inverse);font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;display:none;align-items:center;justify-content:center;gap:.5rem;transition:background var(--ease),transform var(--ease),box-shadow var(--ease);box-shadow:var(--sh-sm);}
+.btn-next:hover{background:var(--primary-h);box-shadow:var(--sh-md);transform:translateY(-1px);}
+.btn-next:active{transform:translateY(0);}
+.btn-next.show{display:flex;}
+.results{width:100%;max-width:680px;display:none;flex-direction:column;align-items:center;text-align:center;gap:1.5rem;}
+.results.show{display:flex;animation:slideIn .3s cubic-bezier(.16,1,.3,1);}
+.results-card{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.5rem 2rem;box-shadow:var(--sh-lg);}
+.r-emoji{font-size:3rem;margin-bottom:1rem;}
+.r-title{font-family:var(--font-d);font-size:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);color:var(--text);margin-bottom:.5rem;}
+.r-sub{color:var(--muted);margin-bottom:2rem;}
+.r-score{font-family:var(--font-d);font-size:clamp(3rem,5vw,5rem);color:var(--primary);line-height:1;margin-bottom:.5rem;}
+.r-score-lbl{color:var(--muted);font-size:clamp(.875rem,.8rem + .35vw,1rem);margin-bottom:2rem;}
+.r-breakdown{display:flex;gap:1rem;justify-content:center;margin-bottom:2rem;}
+.r-item{flex:1;background:var(--offset);border-radius:var(--r-lg);padding:1rem;max-width:140px;}
+.r-num{font-family:var(--font-d);font-size:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);margin-bottom:4px;}
+.r-item-lbl{font-size:clamp(.75rem,.7rem + .25vw,.875rem);color:var(--muted);}
+.r-item.g .r-num{color:var(--success);}
+.r-item.b .r-num{color:var(--error);}
+.verdict{font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;color:var(--muted);background:var(--offset);border-radius:var(--r-lg);padding:.75rem 1.25rem;margin-bottom:2rem;}
+.btn-restart{padding:1rem 2.5rem;border-radius:var(--r-lg);background:var(--primary);color:var(--inverse);font-size:clamp(.875rem,.8rem + .35vw,1rem);font-weight:600;transition:background var(--ease),transform var(--ease),box-shadow var(--ease);box-shadow:var(--sh-sm);}
+.btn-restart:hover{background:var(--primary-h);box-shadow:var(--sh-md);transform:translateY(-1px);}
+.btn-restart:active{transform:translateY(0);}
+.kbd-hint{font-size:clamp(.7rem,.65rem + .2vw,.8rem);color:var(--muted);margin-top:1.25rem;text-align:center;}
+@media(max-width:500px){
+  .card{padding:1.5rem 1.25rem 1.25rem;}
+  .btn-group{grid-template-columns:1fr;}
+  .results-card{padding:2rem 1.25rem;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+        <path d="M18 14h-8"/>
+        <path d="M15 18h-5"/>
+        <path d="M10 6h8v4h-8V6Z"/>
+      </svg>
+      <span class="logo-text">Real or <span>Fake?</span></span>
+    </div>
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode"></button>
+  </header>
+
+  <div class="score-bar" id="scoreBar">
+    <div class="pill"><div class="dot dot-g"></div><span class="n" id="cCount">0</span><span class="l">correct</span></div>
+    <div class="pill"><div class="dot dot-r"></div><span class="n" id="wCount">0</span><span class="l">wrong</span></div>
+    <div class="prog-wrap">
+      <div class="prog-lbl" id="progLbl">0 / 20</div>
+      <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div id="gameCard" class="card">
+    <div class="card-meta" id="cardMeta">Headline 1 of 20</div>
+    <p class="headline" id="hlText"></p>
+    <div class="btn-group">
+      <button class="btn-choice" id="btnReal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Real News
+      </button>
+      <button class="btn-choice" id="btnFake">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Fake News
+      </button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+    <button class="btn-next" id="btnNext">
+      Next Headline
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+    <div class="kbd-hint">Keyboard: <strong>1</strong> (Real) or <strong>2</strong> (Fake) &bull; <strong>Enter</strong> to advance</div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="results-card">
+      <div class="r-emoji" id="rEmoji"></div>
+      <h1 class="r-title" id="rTitle"></h1>
+      <p class="r-sub">Here is how you did</p>
+      <div class="r-score" id="rScore"></div>
+      <div class="r-score-lbl">out of 20</div>
+      <div class="r-breakdown">
+        <div class="r-item g"><div class="r-num" id="rC"></div><div class="r-item-lbl">Correct</div></div>
+        <div class="r-item b"><div class="r-num" id="rW"></div><div class="r-item-lbl">Wrong</div></div>
+      </div>
+      <div class="verdict" id="rVerdict"></div>
+      <button class="btn-restart" id="btnRestart">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var HEADLINES = [
+    {
+      text: "Lost Hiker on Mount Elbert Ignored Rescuers' Phone Calls for 24 Hours Because He Didn't Recognize the Number",
+      source: "real",
+      detail: "In October 2021, Colorado search and rescue teams called the lost hiker repeatedly throughout a freezing night. When he walked out safely the next morning, he explained that he simply never answers calls from unknown numbers."
+    },
+    {
+      text: "Fugitive Wanted for $35M Ponzi Scheme Attempts to Escape FBI Using an Underwater Sea Scooter in Frigid Lake",
+      source: "real",
+      detail: "In November 2020, California fraud suspect Matthew Piercey plunged into 48-degree Lake Shasta with a Yamaha motorized sea scooter. FBI agents watched bubbles for 25 minutes before hypothermia forced him to surface."
+    },
+    {
+      text: "Indiana Judge Officially Rules That Tacos and Burritos Legally Qualify as Mexican-Style Sandwiches",
+      source: "real",
+      detail: "In May 2024, Judge Craig Bobay resolved a commercial zoning dispute in Fort Wayne, ruling that tacos and burritos fit the sandwich criteria so a local restaurant could open in a strip mall restricted to sandwich shops."
+    },
+    {
+      text: "Black Bear Breaks Into Connecticut Bakery and Devours 60 Cupcakes While Cornering Staff in Garage",
+      source: "real",
+      detail: "In May 2023, employees at 'Taste by Spellbound' in Avon were loading delivery vans when a hungry black bear barged in. After cornering workers into a kitchen, the bear dragged a container of cupcakes outside and ate every single one."
+    },
+    {
+      text: "Swedish City Dumps a Ton of Chicken Manure in Public Park to Deter Thousands of Students From Partying",
+      source: "real",
+      detail: "In April 2020, officials in the university town of Lund spread 2,200 pounds of pungent chicken dung across the central park to stop crowds from gathering during Walpurgis Night, noting it would also fertilize the lawn."
+    },
+    {
+      text: "Florida Man Calls 911 to Ask Police to Test His Methamphetamine Because He Believed It Was Fake",
+      source: "real",
+      detail: "In March 2022, a Hernando County resident called dispatch requesting officers verify the purity of his drugs after feeling ripped off at a bar. Deputies tested the substance at his home, confirmed it was genuine meth, and arrested him."
+    },
+    {
+      text: "Missing Turkish Man Spends Hours Helping Search Party Look for Himself in the Woods",
+      source: "real",
+      detail: "In September 2021, 50-year-old Beyhan Mutlu wandered away from friends while drinking in Inegol. He joined a volunteer search party yelling a missing man's name for hours until he finally asked, 'Wait, who are we looking for?'"
+    },
+    {
+      text: "Chess Robot Grabs and Breaks Seven-Year-Old Boy's Finger During Moscow Chess Open",
+      source: "real",
+      detail: "In July 2022, the AI-powered robotic arm panicked when the child moved his chess piece too quickly before the machine had finished its turn. Officials noted the child's finger was put in a cast and he continued playing the next day."
+    },
+    {
+      text: "English Marine Sanctuary Puts Colony of Humboldt Penguins on Antidepressants Due to Relentless Rainy Weather",
+      source: "real",
+      detail: "In February 2014, keepers at the Scarborough Sea Life sanctuary noticed their South American penguins were severely stressed and refusing to swim after weeks of dreary British downpours, so they hid anti-anxiety tablets inside their daily fish."
+    },
+    {
+      text: "German Museum Cleaner Scrubs Away $1 Million Artwork Mistaking Artist's Rainwater Patina for Actual Dirt",
+      source: "real",
+      detail: "In 2011 at Dortmund's Museum Ostwall, an overzealous cleaner scrubbed a wooden basin sculpture by Martin Kippenberger until it gleamed, destroying the delicate layer of chalk dust meant to symbolize dried rainwater."
+    },
+    {
+      text: "Wisconsin Courthouse Evacuated for Two Hours After Burnt Microwave Popcorn Triggers Hazardous Materials Alarm",
+      source: "fake",
+      detail: "This headline is entirely fictional, though popcorn triggering office fire alarms is a relatable workplace hazard."
+    },
+    {
+      text: "Vermont Ski Resort Temporarily Shuts Down Chairlift After Skier Drops Entire 18-Inch Pepperoni Pizza Into Bullwheel Machinery",
+      source: "fake",
+      detail: "This headline was completely made up to sound like an unfortunate and chaotic mountain resort mishap."
+    },
+    {
+      text: "Scottish Council Spends £68,000 on Solar-Powered Speed Bumps That Retract Into the Road on Overcast Days",
+      source: "fake",
+      detail: "This headline is entirely fictional, poking fun at quirky municipal public-works projects."
+    },
+    {
+      text: "Ohio Zoo Postpones Flamingo Exhibit Opening After Contractor Accidentally Paints Outdoor Habitat Safety Orange",
+      source: "fake",
+      detail: "This headline was completely invented, imagining a delightfully awkward construction blunder."
+    },
+    {
+      text: "Australian Hardware Store Bans Customer for Life After He Constructs Fully Furnished Fort in the Lumber Aisle",
+      source: "fake",
+      detail: "This headline is entirely fictional, though retail hide-and-seek pranks remain legendary on the internet."
+    },
+    {
+      text: "City of Seattle Fines Commercial Landlord $12,000 for Erecting 20-Foot Inflatable Pigeon to Scare Real Pigeons",
+      source: "fake",
+      detail: "This headline is completely made up, satirizing unusual urban pest control methods and city zoning fines."
+    },
+    {
+      text: "Phoenix Fire Department Rescues Drone Operator Who Scaled 40-Foot Saguaro Cactus to Retrieve Stuck Drone",
+      source: "fake",
+      detail: "This headline is entirely fictional, though desert first responders have rescued people and pets from many thorny situations."
+    },
+    {
+      text: "French Bakery Fined €3,500 for Selling Traditional Baguettes Half an Inch Shorter Than Prescribed by Municipal Law",
+      source: "fake",
+      detail: "This headline was completely made up, riffing on France's famously strict artisanal bread standards."
+    },
+    {
+      text: "Denver Public Library Suspends Borrower Who Returned 43 Audiobooks Coated in Crunchy Peanut Butter",
+      source: "fake",
+      detail: "This headline is completely invented, imagining every librarian's nightmare return pile."
+    },
+    {
+      text: "North Carolina Town Council Votes 4-1 to Reject Modern Art Sculpture After Residents Mistake It for Scrap Metal Pile",
+      source: "fake",
+      detail: "This headline is entirely fictional, playing on small-town civic debates over avant-garde public art."
+    }
+  ];
+
+  var questions = [];
+  var current = 0;
+  var correct = 0;
+  var wrong = 0;
+  var answered = false;
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function el(id) { return document.getElementById(id); }
+
+  function init() {
+    questions = shuffle(HEADLINES);
+    current = 0; correct = 0; wrong = 0; answered = false;
+    el("results").className = "results";
+    el("gameCard").style.display = "";
+    el("scoreBar").style.display = "";
+    updateScore();
+    renderQ();
+  }
+
+  function renderQ() {
+    answered = false;
+    var q = questions[current];
+    el("hlText").textContent = q.text;
+    el("cardMeta").textContent = "Headline " + (current + 1) + " of " + questions.length;
+    el("btnReal").className = "btn-choice";
+    el("btnFake").className = "btn-choice";
+    el("btnReal").disabled = false;
+    el("btnFake").disabled = false;
+    el("feedback").className = "feedback";
+    el("feedback").innerHTML = "";
+    el("btnNext").className = "btn-next";
+    var isLast = (current === questions.length - 1);
+    el("btnNext").innerHTML = (isLast ? "See Results" : "Next Headline") +
+      ' <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+  }
+
+  function guess(choice) {
+    if (answered) return;
+    answered = true;
+    var q = questions[current];
+    var ok = (choice === q.source);
+    if (ok) { correct++; } else { wrong++; }
+    updateScore();
+
+    el("btnReal").disabled = true;
+    el("btnFake").disabled = true;
+
+    var clickedBtn = (choice === "real") ? el("btnReal") : el("btnFake");
+    var correctBtn = (q.source === "real") ? el("btnReal") : el("btnFake");
+
+    if (ok) {
+      clickedBtn.className = "btn-choice correct";
+    } else {
+      clickedBtn.className = "btn-choice wrong";
+      correctBtn.className = "btn-choice reveal";
+    }
+
+    var fb = el("feedback");
+    var isReal = (q.source === "real");
+    var verdictHTML = "";
+    var checkIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-2px;margin-right:5px;" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+    var crossIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-2px;margin-right:5px;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    if (ok) {
+      fb.className = "feedback show fb-ok";
+      if (isReal) {
+        verdictHTML = '<div class="fb-verdict">' + checkIcon + 'Correct! This really happened.</div>';
+      } else {
+        verdictHTML = '<div class="fb-verdict">' + checkIcon + 'Correct! This one is fake.</div>';
+      }
+    } else {
+      fb.className = "feedback show fb-err";
+      if (isReal) {
+        verdictHTML = '<div class="fb-verdict">' + crossIcon + 'Not quite — this is actually a real story!</div>';
+      } else {
+        verdictHTML = '<div class="fb-verdict">' + crossIcon + 'Fooled you — this one is fake!</div>';
+      }
+    }
+
+    var detailHTML = "";
+    if (isReal) {
+      detailHTML = '<div class="fb-detail"><span class="fb-tag">The Real Story</span>' + q.detail + '</div>';
+    } else if (q.detail) {
+      detailHTML = '<div class="fb-detail"><span class="fb-tag">Fictional</span>' + q.detail + '</div>';
+    }
+
+    fb.innerHTML = verdictHTML + detailHTML;
+    el("btnNext").className = "btn-next show";
+  }
+
+  function nextQ() {
+    if (current < questions.length - 1) {
+      current++;
+      renderQ();
+    } else {
+      showResults();
+    }
+  }
+
+  function updateScore() {
+    el("cCount").textContent = correct;
+    el("wCount").textContent = wrong;
+    var done = correct + wrong;
+    el("progLbl").textContent = done + " / " + questions.length;
+    el("progFill").style.width = ((done / questions.length) * 100) + "%";
+  }
+
+  function showResults() {
+    el("gameCard").style.display = "none";
+    el("scoreBar").style.display = "none";
+    el("results").className = "results show";
+    el("rScore").textContent = correct;
+    el("rC").textContent = correct;
+    el("rW").textContent = wrong;
+
+    var pct = correct / questions.length;
+    var emoji, title, verdict;
+    if (pct === 1) {
+      emoji = "trophy"; title = "Perfect Score!";
+      verdict = "You can tell real news from fake headlines with scary precision.";
+    } else if (pct >= 0.85) {
+      emoji = "target"; title = "Almost Perfect!";
+      verdict = "You have an incredible radar for absurd reality. Well done.";
+    } else if (pct >= 0.70) {
+      emoji = "sharp"; title = "Pretty Sharp!";
+      verdict = "You know your absurdity. Just a few fake headlines tricked you.";
+    } else if (pct >= 0.50) {
+      emoji = "thinking"; title = "Tricky Business...";
+      verdict = "Reality and fiction are converging. Do not feel bad.";
+    } else if (pct >= 0.30) {
+      emoji = "dizzy"; title = "Fooled by the Fakes";
+      verdict = "The fake headlines got the better of you this round.";
+    } else {
+      emoji = "fooled"; title = "Completely Bamboozled";
+      verdict = "Reality is simply too bizarre to believe. Try again!";
+    }
+
+    var display = { trophy: "\ud83c\udfc6", target: "\ud83c\udfaf", sharp: "\ud83d\ude0f", thinking: "\ud83e\udd14", dizzy: "\ud83d\ude35", fooled: "\ud83e\udd25" };
+    el("rEmoji").textContent = display[emoji];
+    el("rTitle").textContent = title;
+    el("rVerdict").textContent = verdict;
+  }
+
+  // Keyboard navigation
+  window.addEventListener("keydown", function(e) {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (!answered && el("gameCard").style.display !== "none") {
+      if (e.key === "1" || e.key === "r" || e.key === "R") {
+        guess("real");
+      } else if (e.key === "2" || e.key === "f" || e.key === "F") {
+        guess("fake");
+      }
+    } else if (answered && el("btnNext").classList.contains("show")) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") {
+        e.preventDefault();
+        nextQ();
+      }
+    } else if (el("results").classList.contains("show")) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        init();
+      }
+    }
+  });
+
+  // Theme
+  var themeBtn = el("themeBtn");
+  var root = document.documentElement;
+  var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (dark) { root.setAttribute("data-theme", "dark"); }
+
+  function moonSVG() { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'; }
+  function sunSVG() { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'; }
+
+  function setThemeIcon() { themeBtn.innerHTML = dark ? sunSVG() : moonSVG(); }
+  setThemeIcon();
+  themeBtn.addEventListener("click", function() {
+    dark = !dark;
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+    setThemeIcon();
+  });
+
+  // Wire buttons
+  el("btnReal").addEventListener("click", function() { guess("real"); });
+  el("btnFake").addEventListener("click", function() { guess("fake"); });
+  el("btnNext").addEventListener("click", nextQ);
+  el("btnRestart").addEventListener("click", init);
+
+  // Start
+  init();
+})();
+</script>
+</body>
+</html>
